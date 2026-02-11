@@ -1,0 +1,27 @@
+
+{
+  "name": "babcock-campus-marketplace",
+  "version": "1.0.0",
+  "description": "A full-stack MERN marketplace for Babcock University",
+  "main": "index.html",
+  "scripts": {
+    "start": "node server/index.js",
+    "server": "cd server && npm start",
+    "server:dev": "cd server && npm run dev",
+    "client": "npx serve .",
+    "dev": "npx concurrently \"npm run server:dev\" \"npm run client\"",
+    "install-all": "npm install && cd server && npm install",
+    "seed": "cd server && npm run data:import"
+  },
+  "keywords": [
+    "mern",
+    "marketplace",
+    "university",
+    "react"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
