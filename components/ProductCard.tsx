@@ -28,7 +28,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
       <Link to={`/product/${product.id}`} className="block relative h-48 overflow-hidden">
         <img 
-          src={product.image} 
+          src={product.images[0]} 
           alt={product.title} 
           className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
         />
@@ -44,9 +44,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         
         <div className="flex items-center mb-2">
           <Star className="h-4 w-4 text-yellow-400 fill-current" />
-          <span className="ml-1 text-sm text-gray-600">{product.rating}</span>
+          <span className="ml-1 text-sm text-gray-600">{product.ratings}</span>
           <span className="mx-2 text-gray-300">•</span>
-          <span className="text-sm text-gray-500">{product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</span>
+          <span className="text-sm text-gray-500">{product.inStock ? 'In stock' : 'Out of stock'}</span>
         </div>
 
         <p className="text-gray-500 text-sm mb-4 line-clamp-2 flex-1">{product.description}</p>
@@ -55,9 +55,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <span className="text-xl font-bold text-blue-900">₦{product.price.toLocaleString()}</span>
           <button
             onClick={() => addToCart(product)}
-            disabled={product.stock === 0}
+            disabled={!product.inStock}
             className={`p-2 rounded-full transition-colors ${
-              product.stock > 0 
+              product.inStock 
                 ? 'bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white' 
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             }`}

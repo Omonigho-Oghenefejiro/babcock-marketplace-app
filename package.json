@@ -1,17 +1,25 @@
-
 {
   "name": "babcock-campus-marketplace",
   "version": "1.0.0",
   "description": "A full-stack MERN marketplace for Babcock University",
-  "main": "index.html",
+  "type": "module",
   "scripts": {
-    "start": "node server/index.js",
-    "server": "cd server && npm start",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "server:dev": "cd server && npm run dev",
-    "client": "npx serve .",
-    "dev": "npx concurrently \"npm run server:dev\" \"npm run client\"",
+    "start:all": "concurrently \"npm run server:dev\" \"npm run dev\"",
     "install-all": "npm install && cd server && npm install",
     "seed": "cd server && npm run data:import"
+  },
+  "dependencies": {
+    "@google/genai": "^1.41.0",
+    "axios": "^1.5.0",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.16.0",
+    "recharts": "^2.10.0"
   },
   "keywords": [
     "mern",
@@ -21,7 +29,15 @@
   ],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "concurrently": "^8.2.2"
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.1.0",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.2.2",
+    "vite": "^4.5.0"
   }
 }

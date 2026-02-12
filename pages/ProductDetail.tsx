@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Star, Shield, ArrowLeft, Plus, Minus, ShoppingCart, Smartphone, CheckCircle, MessageSquare } from 'lucide-react';
+import { Star, Shield, ArrowLeft, Plus, Minus, ShoppingCart, Smartphone, MessageSquare } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import Reviews from '../components/Reviews';
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { products, addToCart, user, allUsers } = useStore();
+  const { products, addToCart, user } = useStore();
   const navigate = useNavigate();
   const product = products.find(p => p.id === id);
   // Allow string to handle empty input during typing
@@ -31,12 +31,11 @@ const ProductDetail = () => {
         navigate('/login');
         return;
     }
-    const seller = allUsers.find(u => u.id === product.sellerId);
     navigate('/messages', { 
         state: { 
-            sellerId: product.sellerId, 
+            sellerId: product.seller.id, 
             productId: product.id,
-            sellerName: seller ? seller.name : (product.contactPhone || 'Seller')
+            sellerName: product.seller.fullName || 'Seller'
         } 
     });
   };
@@ -48,11 +47,11 @@ const ProductDetail = () => {
     }
     const num = parseInt(val);
     if (!isNaN(num) && num > 0) {
-      if (num <= product.stock) {
+      if (num > 0) {
         setQty(num);
       } else {
-        // If user tries to type more than stock, cap it
-        setQty(product.stock);
+        // If user tries to type invalid, keep 1
+        setQty(1);
       }
     }
   };
@@ -65,7 +64,7 @@ const ProductDetail = () => {
 
   const increment = () => {
     const current = typeof qty === 'number' ? qty : 1;
-    if (current < product.stock) setQty(current + 1);
+    setQty(current + 1);
   };
 
   const decrement = () => {
@@ -76,11 +75,11 @@ const ProductDetail = () => {
   const conditionColor = {
     'New': 'bg-green-100 text-green-800',
     'Like New': 'bg-blue-100 text-blue-800',
-    'Used - Good': 'bg-yellow-100 text-yellow-800',
-    'Used - Fair': 'bg-orange-100 text-orange-800'
-  }[product.condition || 'Used - Good'] || 'bg-gray-100 text-gray-800';
+    'Good': 'bg-yellow-100 text-yellow-800',
+    'Fair': 'bg-orange-100 text-orange-800'
+  }[product.condition || 'Good'] || 'bg-gray-100 text-gray-800';
 
-  const isOwnProduct = user?.id === product.sellerId;
+  const isOwnProduct = user?.id === product.seller.id;
   const isAdmin = user?.role === 'admin';
 
   return (
@@ -93,7 +92,7 @@ const ProductDetail = () => {
         <div className="grid grid-cols-1 md:grid-cols-2">
           {/* Image */}
           <div className="h-96 md:h-auto bg-gray-50 flex items-center justify-center p-8">
-            <img src={product.image} alt={product.title} className="max-h-full max-w-full object-contain rounded-lg shadow-lg" />
+            <img src={product.images[0]} alt={product.title} className="max-h-full max-w-full object-contain rounded-lg shadow-lg" />
           </div>
 
           {/* Details */}
@@ -114,10 +113,10 @@ const ProductDetail = () => {
             <div className="flex items-center mb-6">
               <div className="flex text-yellow-400">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className={`h-5 w-5 ${i < Math.floor(product.rating) ? 'fill-current' : 'text-gray-300'}`} />
+                  <Star key={i} className={`h-5 w-5 ${i < Math.floor(product.ratings) ? 'fill-current' : 'text-gray-300'}`} />
                 ))}
               </div>
-              <span className="ml-2 text-gray-600 text-sm">({product.rating} / 5.0)</span>
+              <span className="ml-2 text-gray-600 text-sm">({product.ratings} / 5.0)</span>
             </div>
 
             <p className="text-gray-600 text-lg mb-8 leading-relaxed">
@@ -129,10 +128,10 @@ const ProductDetail = () => {
                 <Shield className="h-4 w-4" />
                 <span>Verified Seller</span>
                 </div>
-                {product.contactPhone && (
+                {product.seller?.phone && (
                     <div className="flex items-center space-x-2 text-sm text-gray-600">
                         <Smartphone className="h-4 w-4" />
-                        <span>Seller Contact: {product.contactPhone}</span>
+                        <span>Seller Contact: {product.seller.phone}</span>
                     </div>
                 )}
             </div>
@@ -164,7 +163,7 @@ const ProductDetail = () => {
                     <button 
                         onClick={increment}
                         className="h-full px-4 hover:bg-gray-50 text-gray-500 border-l border-gray-200 disabled:opacity-50"
-                        disabled={typeof qty === 'number' && qty >= product.stock}
+                        disabled={false}
                     >
                         <Plus className="h-4 w-4" />
                     </button>
@@ -176,11 +175,11 @@ const ProductDetail = () => {
                   <div className="flex flex-col sm:flex-row gap-4">
                     <button 
                         onClick={handleAddToCart}
-                        disabled={product.stock === 0}
+                        disabled={!product.inStock}
                         className="flex-1 bg-blue-600 text-white py-4 px-8 rounded-xl font-bold text-lg shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-xl transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <ShoppingCart className="mr-2 h-5 w-5" />
-                        {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                        {product.inStock ? 'Add to Cart' : 'Out of Stock'}
                     </button>
                     
                     <button 

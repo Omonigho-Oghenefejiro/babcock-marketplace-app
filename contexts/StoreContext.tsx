@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { User, Product, CartItem, UserRole, Order, Review, Conversation, Message, Dispute } from '../types';
+import { User, Product, CartItem, UserRole, UserRoles, Order, Review, Conversation, Message, Dispute } from '../types';
 import API from '../services/api';
 import { useToast } from './ToastContext';
 import { MOCK_DISPUTES, PRODUCTS, MOCK_USER, EXTRA_USERS, MOCK_ADMIN, MOCK_CONVERSATIONS } from '../services/mockData';
@@ -79,7 +79,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const fetchProducts = useCallback(async () => {
     try {
       const { data } = await API.get('/products');
-      setProducts(data);
+      // Backend returns { products, total, pages, currentPage }
+      setProducts(data.products || data || PRODUCTS);
     } catch (error) {
       console.warn("Backend unreachable, loading mock products.");
       // Fallback to Mock Data if empty or error
@@ -155,7 +156,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
          const mockUser = MOCK_USER.email === email ? MOCK_USER : 
                           MOCK_ADMIN.email === email ? MOCK_ADMIN :
                           allUsers.find(u => u.email === email) || 
-                          { ...MOCK_USER, id: `u-${Date.now()}`, email, name: email.split('@')[0], role: role || UserRole.STUDENT };
+                          { ...MOCK_USER, id: `u-${Date.now()}`, email, name: email.split('@')[0], role: role || 'user' as UserRole };
          
          setUser(mockUser);
          localStorage.setItem('user', JSON.stringify(mockUser));
@@ -205,9 +206,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const addProduct = async (product: Product) => {
     try {
-      let imageUrl = product.image;
-      if (product.image.startsWith('data:')) {
-          const res = await fetch(product.image);
+      let imageUrl = product.images?.[0] || '';
+      if (imageUrl && imageUrl.startsWith('data:')) {
+          const res = await fetch(imageUrl);
           const blob = await res.blob();
           const formData = new FormData();
           formData.append('image', blob, 'product.jpg');

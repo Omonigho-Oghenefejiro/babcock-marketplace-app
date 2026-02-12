@@ -1,8 +1,7 @@
-import React from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { StoreProvider } from './contexts/StoreContext';
 import { ToastProvider } from './contexts/ToastContext';
-import Navbar from './components/Navbar';
+import Navbar from './components/NavBar';
 import Footer from './components/Footer';
 import AIAssistant from './components/AIAssistant';
 import Home from './pages/Home';

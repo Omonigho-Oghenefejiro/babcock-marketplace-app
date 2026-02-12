@@ -3,16 +3,19 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');
 
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
 const seedDatabase = async () => {
   try {
+    // Connect to MongoDB first
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('MongoDB connected for seeding');
+
     // Clear existing data
     await User.deleteMany({});
     await Product.deleteMany({});
+    console.log('Cleared existing data');
 
     // Create sample users
     const users = await User.insertMany([
@@ -41,6 +44,7 @@ const seedDatabase = async () => {
         isVerified: true,
       },
     ]);
+    console.log(`Created ${users.length} users`);
 
     // Create sample products
     const products = await Product.insertMany([
@@ -78,14 +82,12 @@ const seedDatabase = async () => {
         inStock: true,
       },
     ]);
-
-    console.log('Database seeded successfully!');
-    console.log(`Created ${users.length} users`);
     console.log(`Created ${products.length} products`);
 
+    console.log('✅ Database seeded successfully!');
     process.exit(0);
   } catch (err) {
-    console.error('Error seeding database:', err);
+    console.error('❌ Error seeding database:', err);
     process.exit(1);
   }
 };
