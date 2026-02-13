@@ -84,10 +84,10 @@ const seedDatabase = async () => {
     ]);
     console.log(`Created ${products.length} products`);
 
-    console.log('✅ Database seeded successfully!');
+    console.log('Database seeded successfully!');
     process.exit(0);
   } catch (err) {
-    console.error('❌ Error seeding database:', err);
+    console.error('Error seeding database:', err);
     process.exit(1);
   }
 };
