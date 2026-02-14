@@ -10,21 +10,30 @@ import {
   Heart, 
   LayoutDashboard, 
   MessageSquare,
-  X,
   ChevronDown,
-  Store,
-  Bell
+  GraduationCap,
+  X
 } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
+import { Button } from './ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import { Badge } from './ui/badge';
+import { Input } from './ui/input';
 
 const Navbar = () => {
   const { user, cart, wishlist, searchQuery, setSearchQuery, logout, conversations } = useStore();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -39,12 +48,9 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close dropdowns when clicking outside
+  // Close search when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
-        setIsProfileOpen(false);
-      }
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsSearchOpen(false);
       }
@@ -56,7 +62,6 @@ const Navbar = () => {
   // Close mobile menu when route changes
   useEffect(() => {
     setIsMenuOpen(false);
-    setIsProfileOpen(false);
     setIsSearchOpen(false);
   }, [location]);
 
@@ -72,17 +77,21 @@ const Navbar = () => {
     }, 0);
   }, [conversations, user]);
 
-  const navLinks = [
-    { to: '/shop', label: 'Shop', icon: Store },
-    { to: '/sell', label: 'Sell', icon: Store },
-  ];
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <>
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         isScrolled 
-          ? 'bg-white/95 backdrop-blur-md shadow-lg py-2' 
-          : 'bg-white shadow-sm py-3'
+          ? 'bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm py-2' 
+          : 'bg-white border-b border-gray-100 py-3'
       }`}>
         <div className="container-custom">
           <div className="flex items-center justify-between">
@@ -91,46 +100,47 @@ const Navbar = () => {
               to="/" 
               className="flex items-center space-x-2 group"
             >
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-lg transform group-hover:rotate-6 transition-transform duration-300">
-                <Store className="h-6 w-6 text-white" />
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 p-2 rounded-lg transform group-hover:scale-105 transition-transform duration-300">
+                <GraduationCap className="h-5 w-5 text-white" />
               </div>
               <span className="font-bold text-xl">
-                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Babcock
-                </span>
+                <span className="text-blue-900">Babcock</span>
                 <span className="text-gray-900">Market</span>
               </span>
             </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    location.pathname === link.to
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              <Link
+                to="/shop"
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  location.pathname === '/shop'
+                    ? 'bg-blue-50 text-blue-900'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Shop
+              </Link>
+              <Link
+                to="/sell"
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  location.pathname === '/sell'
+                    ? 'bg-blue-50 text-blue-900'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Sell
+              </Link>
             </div>
 
             {/* Desktop Search */}
             <div className="hidden md:block flex-1 max-w-md mx-8" ref={searchRef}>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                </div>
-                <input
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
                   type="text"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl 
-                           bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 
-                           focus:border-transparent outline-none transition-all duration-200"
                   placeholder="Search for anything..."
+                  className="pl-10 w-full bg-gray-50 border-gray-200 focus:bg-white"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setIsSearchOpen(true)}
@@ -138,10 +148,10 @@ const Navbar = () => {
                 
                 {/* Search suggestions dropdown */}
                 {isSearchOpen && searchQuery && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                     <div className="p-2">
-                      <div className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 rounded-lg cursor-pointer">
-                        Search for "{searchQuery}"
+                      <div className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md cursor-pointer">
+                        Search for "<span className="font-medium">{searchQuery}</span>"
                       </div>
                     </div>
                   </div>
@@ -154,22 +164,22 @@ const Navbar = () => {
               {user?.role === 'admin' && (
                 <Link
                   to="/admin"
-                  className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors group"
+                  className="p-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                 >
-                  <ShieldCheck className="h-5 w-5 group-hover:text-blue-600" />
+                  <ShieldCheck className="h-5 w-5" />
                 </Link>
               )}
 
               {user && (
                 <Link
                   to="/messages"
-                  className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors group"
+                  className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                 >
-                  <MessageSquare className="h-5 w-5 group-hover:text-blue-600" />
+                  <MessageSquare className="h-5 w-5" />
                   {unreadMessagesCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white text-xs">
                       {unreadMessagesCount}
-                    </span>
+                    </Badge>
                   )}
                 </Link>
               )}
@@ -178,142 +188,143 @@ const Navbar = () => {
                 <>
                   <Link
                     to="/wishlist"
-                    className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors group"
+                    className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                   >
-                    <Heart className="h-5 w-5 group-hover:text-pink-500" />
+                    <Heart className="h-5 w-5" />
                     {wishlist.length > 0 && (
-                      <span className="absolute -top-1 -right-1 h-5 w-5 bg-pink-500 text-white text-xs rounded-full flex items-center justify-center">
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-pink-500 text-white text-xs">
                         {wishlist.length}
-                      </span>
+                      </Badge>
                     )}
                   </Link>
 
                   <Link
                     to="/cart"
-                    className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors group"
+                    className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                   >
-                    <ShoppingCart className="h-5 w-5 group-hover:text-blue-600" />
+                    <ShoppingCart className="h-5 w-5" />
                     {cartCount > 0 && (
-                      <span className="absolute -top-1 -right-1 h-5 w-5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center">
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-blue-900 text-white text-xs">
                         {cartCount}
-                      </span>
+                      </Badge>
                     )}
                   </Link>
                 </>
               )}
 
               {/* User Menu */}
-              <div className="relative" ref={profileRef}>
-                {user ? (
-                  <>
-                    <button
-                      onClick={() => setIsProfileOpen(!isProfileOpen)}
-                      className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 transition-colors group"
-                    >
-                      <div className="relative">
-                        <img
-                          className="h-8 w-8 rounded-xl object-cover ring-2 ring-gray-200 group-hover:ring-blue-500 transition-all"
-                          src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=random`}
-                          alt={user.name}
-                        />
-                        <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 rounded-full ring-2 ring-white"></div>
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.avatar} alt={user.fullName || user.name} />
+                        <AvatarFallback className="bg-blue-100 text-blue-900">
+                          {getInitials(user.fullName || user.name || 'User')}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.fullName || user.name}</p>
+                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                       </div>
-                      <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {/* Dropdown Menu */}
-                    {isProfileOpen && (
-                      <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fadeIn">
-                        <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600">
-                          <p className="text-white font-medium">{user.name}</p>
-                          <p className="text-blue-100 text-sm truncate">{user.email}</p>
-                        </div>
-                        
-                        <div className="p-2">
-                          {user.role === 'admin' ? (
-                            <Link
-                              to="/admin"
-                              className="flex items-center space-x-3 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                              onClick={() => setIsProfileOpen(false)}
-                            >
-                              <LayoutDashboard className="h-4 w-4 text-gray-500" />
-                              <span className="text-sm text-gray-700">Admin Dashboard</span>
-                            </Link>
-                          ) : (
-                            <Link
-                              to="/dashboard"
-                              className="flex items-center space-x-3 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                              onClick={() => setIsProfileOpen(false)}
-                            >
-                              <LayoutDashboard className="h-4 w-4 text-gray-500" />
-                              <span className="text-sm text-gray-700">Dashboard</span>
-                            </Link>
-                          )}
-
-                          <button
-                            onClick={() => {
-                              logout();
-                              setIsProfileOpen(false);
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors group"
-                          >
-                            <LogOut className="h-4 w-4 text-red-500" />
-                            <span className="text-sm text-red-600">Sign Out</span>
-                          </button>
-                        </div>
-                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {user.role === 'admin' ? (
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin" className="cursor-pointer w-full">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          <span>Admin Dashboard</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem asChild>
+                        <Link to="/dashboard" className="cursor-pointer w-full">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          <span>Dashboard</span>
+                        </Link>
+                      </DropdownMenuItem>
                     )}
-                  </>
-                ) : (
-                  <Link
-                    to="/login"
-                    className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-                  >
-                    <User className="h-4 w-4" />
-                    <span className="text-sm font-medium">Sign In</span>
+                    <DropdownMenuItem asChild>
+                      <Link to="/messages" className="cursor-pointer w-full">
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        <span>Messages</span>
+                        {unreadMessagesCount > 0 && (
+                          <Badge className="ml-auto bg-red-500 text-white">{unreadMessagesCount}</Badge>
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/wishlist" className="cursor-pointer w-full">
+                        <Heart className="mr-2 h-4 w-4" />
+                        <span>Wishlist</span>
+                        {wishlist.length > 0 && (
+                          <Badge className="ml-auto bg-pink-500 text-white">{wishlist.length}</Badge>
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                      onClick={logout}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button asChild className="bg-blue-900 hover:bg-blue-800 text-white">
+                  <Link to="/login">
+                    <User className="mr-2 h-4 w-4" />
+                    Sign In
                   </Link>
-                )}
-              </div>
+                </Button>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
             <div className="flex items-center space-x-2 md:hidden">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="relative"
               >
                 <Search className="h-5 w-5" />
-              </button>
+              </Button>
               
-              <Link to="/cart" className="relative p-2 text-gray-700">
-                <ShoppingCart className="h-5 w-5" />
+              <Link to="/cart" className="relative p-2">
+                <ShoppingCart className="h-5 w-5 text-gray-700" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center">
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-blue-900 text-white text-xs">
                     {cartCount}
-                  </span>
+                  </Badge>
                 )}
               </Link>
 
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* Mobile Search */}
           {isSearchOpen && (
-            <div className="mt-4 md:hidden animate-fadeIn">
+            <div className="mt-4 md:hidden animate-in fade-in slide-in-from-top-2">
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
-                  <Search className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
                   type="text"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50"
                   placeholder="Search products..."
+                  className="pl-10 w-full"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus
@@ -326,50 +337,106 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="fixed inset-0 z-40 md:hidden animate-slideIn">
+        <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)} />
-          <div className="absolute right-0 top-0 bottom-0 w-64 bg-white shadow-xl">
+          <div className="absolute right-0 top-0 bottom-0 w-64 bg-white shadow-xl animate-in slide-in-from-right">
             <div className="p-6">
+              {user && (
+                <div className="flex items-center space-x-3 mb-6 pb-6 border-b border-gray-100">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user.avatar} alt={user.fullName || user.name} />
+                    <AvatarFallback className="bg-blue-100 text-blue-900">
+                      {getInitials(user.fullName || user.name || 'User')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{user.fullName || user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+                </div>
+              )}
+              
               <div className="space-y-4">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+                <Link
+                  to="/shop"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Shop
+                </Link>
+                <Link
+                  to="/sell"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Sell
+                </Link>
                 
                 {user && (
                   <>
                     <Link
                       to="/messages"
-                      className="flex items-center justify-between px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                      className="flex items-center justify-between px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       <span>Messages</span>
                       {unreadMessagesCount > 0 && (
-                        <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs">
-                          {unreadMessagesCount}
-                        </span>
+                        <Badge className="bg-red-500 text-white">{unreadMessagesCount}</Badge>
                       )}
                     </Link>
                     
                     <Link
                       to="/wishlist"
-                      className="flex items-center justify-between px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                      className="flex items-center justify-between px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       <span>Wishlist</span>
                       {wishlist.length > 0 && (
-                        <span className="bg-pink-500 text-white px-2 py-1 rounded-full text-xs">
-                          {wishlist.length}
-                        </span>
+                        <Badge className="bg-pink-500 text-white">{wishlist.length}</Badge>
                       )}
                     </Link>
+
+                    {isAdmin ? (
+                      <Link
+                        to="/admin"
+                        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <LayoutDashboard className="h-4 w-4 mr-2" />
+                        Admin Dashboard
+                      </Link>
+                    ) : (
+                      <Link
+                        to="/dashboard"
+                        className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <LayoutDashboard className="h-4 w-4 mr-2" />
+                        Dashboard
+                      </Link>
+                    )}
                   </>
+                )}
+
+                {user ? (
+                  <button
+                    onClick={() => {
+                      logout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center px-4 py-2 text-red-600 hover:bg-red-50 rounded-md"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </button>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="block px-4 py-2 text-center bg-blue-900 text-white rounded-md hover:bg-blue-800"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sign In
+                  </Link>
                 )}
               </div>
             </div>
@@ -378,7 +445,7 @@ const Navbar = () => {
       )}
 
       {/* Spacer to prevent content from hiding under fixed navbar */}
-      <div className="h-20" />
+      <div className="h-16" />
     </>
   );
 };

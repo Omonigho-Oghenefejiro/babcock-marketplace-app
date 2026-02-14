@@ -21,22 +21,24 @@ const App = () => {
     <ToastProvider>
       <StoreProvider>
         <Router>
-          <div className="flex flex-col min-h-screen bg-gray-50 font-sans">
+          <div className="flex flex-col min-h-screen bg-background font-sans antialiased">
             <Navbar />
-            <main className="flex-grow">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/shop" element={<Shop />} />
-                <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/wishlist" element={<Wishlist />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/dashboard" element={<UserDashboard />} />
-                <Route path="/sell" element={<SellItem />} />
-                <Route path="/messages" element={<Messages />} />
-                <Route path="/payment/callback" element={<PaymentCallback />} />
-              </Routes>
+            <main className="flex-grow pt-16">
+              <div className="container-custom py-6 md:py-8">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/shop" element={<Shop />} />
+                  <Route path="/product/:id" element={<ProductDetail />} />
+                  <Route path="/cart" element={<Cart />} />
+                  <Route path="/wishlist" element={<Wishlist />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/dashboard" element={<UserDashboard />} />
+                  <Route path="/sell" element={<SellItem />} />
+                  <Route path="/messages" element={<Messages />} />
+                  <Route path="/payment/callback" element={<PaymentCallback />} />
+                </Routes>
+              </div>
             </main>
             <AIAssistant />
             <Footer />

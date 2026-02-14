@@ -16,9 +16,12 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
   "include": ["index.tsx", "App.tsx", "types.tsx", "pages", "components", "contexts", "services"],
   "exclude": ["node_modules", "server"]
 }
-

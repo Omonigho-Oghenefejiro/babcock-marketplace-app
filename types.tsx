@@ -1,7 +1,7 @@
-
+// types.tsx
 export type UserRole = 'user' | 'seller' | 'admin';
-
 // Also export as a const object for easier access
+
 export const UserRoles = {
   USER: 'user' as UserRole,
   SELLER: 'seller' as UserRole,
@@ -10,15 +10,20 @@ export const UserRoles = {
 
 export interface User {
   id: string;
-  fullName: string;
+  name: string;           // Add this
+  fullName?: string;      // Keep this if used
   email: string;
   phone?: string;
   role: UserRole;
   isVerified: boolean;
-  profileImage?: string;
+  avatar?: string;        // Add this
+  profileImage?: string;  // Keep this if used
   ratings?: number;
   createdAt?: string;
 }
+
+
+
 
 export interface Product {
   id: string;
