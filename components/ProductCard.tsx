@@ -1,225 +1,168 @@
 import React, { useState } from 'react';
-import { Star, ShoppingBag, Heart, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, ShoppingCart, Star, Eye } from 'lucide-react';
 import { Product } from '../types';
 import { useStore } from '../contexts/StoreContext';
 import { Link } from 'react-router-dom';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 
 interface ProductCardProps {
   product: Product;
+  compact?: boolean;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) => {
   const { addToCart, toggleWishlist, wishlist } = useStore();
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const isWishlisted = wishlist.some(item => item.id === product.id);
-  const images = product.images.length > 0 ? product.images : ['https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'];
+  const mainImage = product.images?.[0] || 'https://placehold.co/400x400/e2e8f0/1e293b?text=No+Image';
 
-  const nextImage = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  };
+  // Compact view
+  if (compact) {
+    return (
+      <Link to={`/product/${product.id}`} className="block group">
+        <div className="bg-white rounded-lg overflow-hidden border border-gray-100 hover:shadow-md transition-all">
+          <div className="aspect-square overflow-hidden">
+            <img 
+              src={imageError ? 'https://placehold.co/400x400/e2e8f0/1e293b?text=No+Image' : mainImage}
+              alt={product.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={() => setImageError(true)}
+            />
+          </div>
+          <div className="p-2">
+            <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
+            <p className="text-xs text-gray-500 mb-1">{product.category}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-primary-800">₦{product.price.toLocaleString()}</span>
+              <Button 
+                size="sm" 
+                className="h-7 px-2 text-xs bg-primary-800 hover:bg-primary-900"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  addToCart(product);
+                }}
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
-  const prevImage = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  const conditionColors = {
+    'New': 'bg-green-100 text-green-800',
+    'Like New': 'bg-blue-100 text-blue-800',
+    'Good': 'bg-yellow-100 text-yellow-800',
+    'Fair': 'bg-orange-100 text-orange-800',
   };
 
   return (
     <div 
-      className="group bg-white rounded-2xl shadow-sm hover:shadow-2xl 
-                 transition-all duration-500 overflow-hidden relative
-                 transform hover:-translate-y-2"
+      className="group relative bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        setCurrentImageIndex(0);
-      }}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Image Container */}
+      {/* Image container - Refactoring UI: Everything has an intended size */}
       <Link to={`/product/${product.id}`} className="block relative aspect-square overflow-hidden bg-gray-100">
         <img 
-          src={images[currentImageIndex]} 
-          alt={product.title} 
-          className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+          src={imageError ? 'https://placehold.co/400x400/e2e8f0/1e293b?text=No+Image' : mainImage}
+          alt={product.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={() => setImageError(true)}
         />
 
-        {/* Image Navigation Arrows */}
-        {images.length > 1 && isHovered && (
-          <>
-            <button
-              onClick={prevImage}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 
-                       bg-white/90 backdrop-blur-sm rounded-full shadow-lg
-                       flex items-center justify-center hover:bg-white
-                       transition-all duration-200 opacity-0 group-hover:opacity-100
-                       transform translate-x-0 group-hover:translate-x-0"
-            >
-              <ChevronLeft className="h-4 w-4 text-gray-700" />
-            </button>
-            <button
-              onClick={nextImage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 
-                       bg-white/90 backdrop-blur-sm rounded-full shadow-lg
-                       flex items-center justify-center hover:bg-white
-                       transition-all duration-200 opacity-0 group-hover:opacity-100"
-            >
-              <ChevronRight className="h-4 w-4 text-gray-700" />
-            </button>
-          </>
-        )}
-
-        {/* Image Indicators */}
-        {images.length > 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex space-x-1">
-            {images.map((_, index) => (
-              <div
-                key={index}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  index === currentImageIndex 
-                    ? 'w-6 bg-white' 
-                    : 'w-1.5 bg-white/60'
-                }`}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Quick View Overlay */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
-                      transition-opacity duration-300 flex items-center justify-center">
-          <span className="bg-white text-gray-900 px-4 py-2 rounded-full text-sm 
-                         font-medium transform translate-y-4 group-hover:translate-y-0 
-                         transition-transform duration-300 flex items-center space-x-2">
-            <Eye className="h-4 w-4" />
-            <span>Quick View</span>
+        {/* Quick view overlay - appears on hover */}
+        <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+          <span className="bg-white text-gray-900 px-4 py-2 rounded-full text-sm font-medium flex items-center">
+            <Eye className="h-4 w-4 mr-2" />
+            Quick view
           </span>
         </div>
 
-        {/* Category Badge */}
-        <div className="absolute top-3 left-3">
-          <span className="bg-white/95 backdrop-blur-sm text-gray-800 px-3 py-1.5 
-                         rounded-full text-xs font-semibold shadow-sm">
-            {product.category}
-          </span>
-        </div>
+        {/* Condition badge - Refactoring UI: Use badges for metadata */}
+        <Badge className={`absolute top-3 left-3 ${conditionColors[product.condition] || 'bg-gray-100 text-gray-800'}`}>
+          {product.condition}
+        </Badge>
 
-        {/* Condition Badge */}
-        <div className="absolute top-3 right-3">
-          <span className={`px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm
-            ${product.condition === 'New' ? 'bg-green-500 text-white' :
-              product.condition === 'Like New' ? 'bg-blue-500 text-white' :
-              product.condition === 'Good' ? 'bg-yellow-500 text-white' :
-              'bg-orange-500 text-white'}`}
-          >
-            {product.condition}
-          </span>
-        </div>
-
-        {/* Wishlist Button */}
+        {/* Wishlist button - subtle until hover */}
         <button 
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             toggleWishlist(product);
           }}
-          className="absolute bottom-3 right-3 w-10 h-10 bg-white/95 backdrop-blur-sm 
-                   rounded-full shadow-lg flex items-center justify-center
-                   hover:bg-white transition-all duration-200 transform 
-                   hover:scale-110 active:scale-95"
-        >
-          <Heart className={`h-5 w-5 transition-colors ${
+          className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-200 ${
             isWishlisted 
-              ? 'fill-pink-500 text-pink-500' 
-              : 'text-gray-400 hover:text-pink-500'
-          }`} />
+              ? 'bg-pink-500 text-white' 
+              : 'bg-white/80 backdrop-blur-sm text-gray-600 hover:bg-white'
+          }`}
+        >
+          <Heart className={`h-4 w-4 ${isWishlisted ? 'fill-white' : ''}`} />
         </button>
+
+        {/* Stock indicator - Refactoring UI: Don't rely on color alone */}
+        {!product.inStock && (
+          <div className="absolute bottom-3 left-3 right-3">
+            <Badge variant="destructive" className="w-full justify-center">
+              Out of Stock
+            </Badge>
+          </div>
+        )}
       </Link>
 
-      {/* Content */}
-      <div className="p-5">
+      {/* Content - Refactoring UI: Hierarchy through de-emphasis */}
+      <div className="p-4">
         <Link to={`/product/${product.id}`} className="block mb-2">
-          <h3 className="font-semibold text-gray-900 text-lg line-clamp-1 
-                       hover:text-blue-600 transition-colors">
+          <h3 className="font-medium text-gray-900 hover:text-primary-800 transition-colors line-clamp-1">
             {product.title}
           </h3>
         </Link>
         
-        <p className="text-gray-500 text-sm mb-4 line-clamp-2">
+        {/* Category and rating - de-emphasized */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs text-gray-500">{product.category}</span>
+          <div className="flex items-center">
+            <Star className="h-3 w-3 fill-accent-500 text-accent-500 mr-1" />
+            <span className="text-xs text-gray-600">{product.ratings.toFixed(1)}</span>
+          </div>
+        </div>
+
+        <p className="text-sm text-gray-600 line-clamp-2 mb-4">
           {product.description}
         </p>
 
-        {/* Rating */}
-        <div className="flex items-center mb-4">
-          <div className="flex items-center">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={`h-4 w-4 ${
-                  i < Math.floor(product.ratings)
-                    ? 'text-yellow-400 fill-current'
-                    : 'text-gray-300'
-                }`}
-              />
-            ))}
-          </div>
-          <span className="ml-2 text-sm text-gray-500">
-            ({product.reviews?.length || 0} reviews)
-          </span>
-        </div>
-
-        {/* Price and Add to Cart */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+        {/* Price and add to cart - Refactoring UI: Action hierarchy */}
+        <div className="flex items-center justify-between">
           <div>
-            <span className="text-sm text-gray-500 line-through">
-              ₦{(product.price * 1.2).toLocaleString()}
-            </span>
-            <span className="block text-2xl font-bold text-gray-900">
-              ₦{product.price.toLocaleString()}
-            </span>
-          </div>
-          
-          <button
-            onClick={() => addToCart(product)}
-            disabled={!product.inStock}
-            className={`relative p-3 rounded-xl transition-all duration-300 
-                     transform hover:scale-110 active:scale-95 group
-                     ${product.inStock 
-                       ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md hover:shadow-xl' 
-                       : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                     }`}
-          >
-            <ShoppingBag className="h-5 w-5" />
-            
-            {/* Tooltip */}
-            {product.inStock && (
-              <span className="absolute -top-8 left-1/2 -translate-x-1/2 
-                             bg-gray-900 text-white text-xs py-1 px-2 rounded
-                             opacity-0 group-hover:opacity-100 transition-opacity
-                             whitespace-nowrap pointer-events-none">
-                Add to Cart
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Stock Status */}
-        {!product.inStock && (
-          <div className="absolute bottom-20 left-5 right-5">
-            <div className="bg-red-50 text-red-600 text-sm font-medium px-3 py-2 
-                          rounded-lg text-center">
-              Out of Stock
+            <span className="text-xs text-gray-500">Price</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-bold text-gray-900">₦{product.price.toLocaleString()}</span>
+              {product.originalPrice && (
+                <span className="text-xs text-gray-400 line-through">₦{product.originalPrice.toLocaleString()}</span>
+              )}
             </div>
           </div>
-        )}
+          
+          <Button
+            size="sm"
+            onClick={() => addToCart(product)}
+            disabled={!product.inStock}
+            className={product.inStock 
+              ? 'bg-primary-800 hover:bg-primary-900 text-white' 
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            }
+          >
+            <ShoppingCart className="h-4 w-4 mr-1" />
+            Add
+          </Button>
+        </div>
       </div>
-
-      {/* Hover Border Effect */}
-      <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-500/20 
-                    rounded-2xl transition-colors duration-300 pointer-events-none" />
     </div>
   );
 };

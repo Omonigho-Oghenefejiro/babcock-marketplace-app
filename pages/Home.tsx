@@ -1,332 +1,417 @@
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
-  Shield, 
-  Truck, 
-  TrendingUp, 
+  GraduationCap,
+  BookOpen,
+  Laptop,
+  Coffee,
+  Shirt,
+  Smartphone,
   ArrowRight,
-  Star,
+  Shield,
   Users,
   Clock,
-  ShoppingBag,
+  Star,
   ChevronRight,
-  Sparkles
+  Package,
+  CreditCard,
+  MessageCircle,
+  MapPin,
+  TrendingUp,
+  Zap
 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
+import BlurredProduct from '../components/BlurredProduct';
 import { useStore } from '../contexts/StoreContext';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
 
 const Home = () => {
-  const { products } = useStore(); // This is correct - using useStore, not useState
+  const { user, products } = useStore();
   const featuredProducts = products?.slice(0, 6) || [];
 
   const categories = [
-    { name: 'Textbooks', icon: '📚', count: '150+', color: 'from-blue-500 to-blue-600' },
-    { name: 'Electronics', icon: '💻', count: '80+', color: 'from-purple-500 to-purple-600' },
-    { name: 'Clothing', icon: '👕', count: '200+', color: 'from-pink-500 to-pink-600' },
-    { name: 'Food & Snacks', icon: '🍕', count: '60+', color: 'from-orange-500 to-orange-600' },
-    { name: 'Furniture', icon: '🪑', count: '40+', color: 'from-green-500 to-green-600' },
-    { name: 'Stationery', icon: '✏️', count: '100+', color: 'from-yellow-500 to-yellow-600' },
+    { name: 'Textbooks', icon: BookOpen, count: '150+', color: 'from-blue-500 to-blue-600' },
+    { name: 'Electronics', icon: Laptop, count: '80+', color: 'from-purple-500 to-purple-600' },
+    { name: 'Hostel', icon: Coffee, count: '200+', color: 'from-green-500 to-green-600' },
+    { name: 'Fashion', icon: Shirt, count: '120+', color: 'from-pink-500 to-pink-600' },
+    { name: 'Tech', icon: Smartphone, count: '60+', color: 'from-orange-500 to-orange-600' },
+    { name: 'Stationery', icon: BookOpen, count: '90+', color: 'from-yellow-500 to-yellow-600' },
   ];
 
-  const features = [
-    { icon: Shield, title: 'Secure Trading', desc: 'Safe transactions with buyer protection', color: 'blue' },
-    { icon: Truck, title: 'Campus Delivery', desc: 'Quick delivery within campus', color: 'green' },
-    { icon: TrendingUp, title: 'Best Prices', desc: 'Student-friendly prices', color: 'purple' },
-    { icon: Users, title: 'Verified Students', desc: 'Only Babcock students', color: 'orange' },
-  ];
-
-  const stats = [
-    { label: 'Active Users', value: '2,500+', icon: Users },
-    { label: 'Items Sold', value: '10,000+', icon: ShoppingBag },
-    { label: 'Daily Listings', value: '100+', icon: Clock },
-    { label: 'Happy Students', value: '98%', icon: Star },
+  const quickActions = [
+    { label: 'Trending 🔥', color: 'red', href: '/shop?sort=trending' },
+    { label: 'New Arrivals ✨', color: 'blue', href: '/shop?sort=new' },
+    { label: 'Best Sellers ⭐', color: 'amber', href: '/shop?sort=bestsellers' },
+    { label: 'Under ₦5000 💰', color: 'green', href: '/shop?price=under5000' },
+    { label: 'Free Pickup 📦', color: 'purple', href: '/shop?pickup=free' },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 overflow-hidden">
-        {/* Animated background patterns */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.1%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-20"></div>
-        </div>
-
-        <div className="container-custom relative py-20 lg:py-28">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+      {/* Hero Section - Compact */}
+      <section className="bg-gradient-to-br from-primary-900 to-primary-800 py-12 md:py-16">
+        <div className="container-custom">
+          <div className="flex flex-col lg:flex-row items-center gap-8">
             {/* Left Content */}
-            <div className="text-center lg:text-left">
-              <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-                <Sparkles className="h-4 w-4 text-yellow-300 mr-2" />
-                <span className="text-sm text-white font-medium">The #1 Campus Marketplace</span>
-              </div>
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex-1 text-center lg:text-left"
+            >
+              <Badge variant="outline" className="border-white/30 text-white mb-4">
+                <GraduationCap className="h-3.5 w-3.5 mr-1" />
+                Babcock University
+              </Badge>
               
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
-                Buy & Sell 
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-300">
-                  With Fellow Students
-                </span>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
+                Campus Marketplace
               </h1>
               
-              <p className="text-lg md:text-xl text-blue-100 mb-8 max-w-2xl mx-auto lg:mx-0">
-                Join thousands of Babcock students trading textbooks, electronics, and essentials securely on campus.
+              <p className="text-lg text-primary-100 mb-6 max-w-xl mx-auto lg:mx-0">
+                Buy and sell with verified students. Safe, local, and designed for you.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link 
-                  to="/shop" 
-                  className="group bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold 
-                           hover:shadow-2xl transform hover:scale-105 transition-all duration-300
-                           flex items-center justify-center space-x-2"
-                >
-                  <span>Start Shopping</span>
-                  <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                
-                <Link 
-                  to="/sell" 
-                  className="group border-2 border-white text-white px-8 py-4 rounded-xl 
-                           font-semibold hover:bg-white/10 transform hover:scale-105 
-                           transition-all duration-300 flex items-center justify-center space-x-2"
-                >
-                  <span>Sell Your Items</span>
-                  <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </div>
-
-              {/* Trust badges */}
-              <div className="flex items-center justify-center lg:justify-start space-x-6 mt-8">
-                <div className="flex -space-x-2">
-                  {[1,2,3,4].map((i) => (
-                    <img
-                      key={i}
-                      src={`https://i.pravatar.cc/40?img=${i}`}
-                      alt="User"
-                      className="w-8 h-8 rounded-full border-2 border-white"
-                    />
-                  ))}
-                </div>
-                <p className="text-sm text-blue-100">
-                  <span className="font-bold text-white">2,500+</span> active students
-                </p>
-              </div>
-            </div>
-
-            {/* Right Content - Stats Grid */}
-            <div className="hidden lg:block">
-              <div className="grid grid-cols-2 gap-4">
-                {stats.map((stat, index) => {
-                  const Icon = stat.icon;
+              {/* Quick action chips - Interactive */}
+              <div className="flex flex-wrap gap-2 justify-center lg:justify-start mb-6">
+                {quickActions.map((action, idx) => {
+                  const colorClasses = {
+                    red: 'bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200 border-red-500/30',
+                    blue: 'bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:text-blue-200 border-blue-500/30',
+                    amber: 'bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 border-amber-500/30',
+                    green: 'bg-green-500/10 text-green-300 hover:bg-green-500/20 hover:text-green-200 border-green-500/30',
+                    purple: 'bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 hover:text-purple-200 border-purple-500/30',
+                  };
+                  
                   return (
-                    <div
-                      key={index}
-                      className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center 
-                               transform hover:scale-105 transition-all duration-300
-                               animate-float"
-                      style={{ animationDelay: `${index * 100}ms` }}
+                    <motion.div
+                      key={idx}
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <Icon className="h-8 w-8 text-white mx-auto mb-3" />
-                      <div className="text-2xl font-bold text-white">{stat.value}</div>
-                      <div className="text-sm text-blue-200">{stat.label}</div>
-                    </div>
+                      <Link
+                        to={action.href}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 border ${colorClasses[action.color as keyof typeof colorClasses]} backdrop-blur-sm`}
+                      >
+                        {action.label}
+                      </Link>
+                    </motion.div>
                   );
                 })}
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Wave divider */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" className="w-full">
-            <path fill="#f9fafb" fillOpacity="1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,154.7C960,171,1056,181,1152,165.3C1248,149,1344,107,1392,85.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-          </svg>
-        </div>
-      </section>
-      {/* Categories Section */}
-      <section className="py-20">
-        <div className="container-custom">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Browse by Category
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Find exactly what you need from thousands of items listed by students
-            </p>
-          </div>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+                <Button size="lg" className="bg-accent-500 hover:bg-accent-600 text-primary-900 px-6 py-5 text-base" asChild>
+                  <Link to="/shop">
+                    Start Shopping
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 px-6 py-5 text-base" asChild>
+                  <Link to="/sell">Sell an Item</Link>
+                </Button>
+              </div>
+            </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {categories.map((category) => (
-              <Link
-                key={category.name}
-                to={`/shop?category=${category.name.toLowerCase()}`}
-                className="group relative bg-white rounded-2xl p-6 text-center 
-                         shadow-sm hover:shadow-xl transform hover:-translate-y-1 
-                         transition-all duration-300 overflow-hidden"
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-0 
-                                group-hover:opacity-10 transition-opacity duration-300`} />
-                <span className="text-4xl mb-3 block transform group-hover:scale-110 transition-transform">
-                  {category.icon}
-                </span>
-                <h3 className="font-semibold text-gray-900 mb-1">{category.name}</h3>
-                <p className="text-sm text-gray-500">{category.count}</p>
-              </Link>
-            ))}
+            {/* Stats - Compact grid */}
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex-1 grid grid-cols-2 gap-3"
+            >
+              {[
+                { label: 'Students', value: '2.5k+', icon: Users },
+                { label: 'Items', value: '1.8k+', icon: Package },
+                { label: 'Trades', value: '4.2k+', icon: CreditCard },
+                { label: 'Active', value: '1.2k', icon: MessageCircle },
+              ].map((stat, i) => {
+                const Icon = stat.icon;
+                return (
+                  <div key={i} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                    <Icon className="h-5 w-5 text-accent-400 mx-auto mb-1" />
+                    <div className="text-xl font-bold text-white">{stat.value}</div>
+                    <div className="text-xs text-primary-200">{stat.label}</div>
+                  </div>
+                );
+              })}
+            </motion.div>
           </div>
         </div>
       </section>
 
-            {/* Features Section */}
-      <section className="py-20 bg-white">
+      {/* Quick Actions Row - More interactive chips */}
+      <section className="py-8 bg-white border-b border-gray-100">
         <div className="container-custom">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose Us?
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              We make campus trading safe, easy, and convenient for everyone
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, idx) => {
-              const Icon = feature.icon;
-              const colorMap = {
-                blue: 'from-blue-500 to-blue-600',
-                green: 'from-green-500 to-green-600',
-                purple: 'from-purple-500 to-purple-600',
-                orange: 'from-orange-500 to-orange-600',
+          <div className="flex flex-wrap gap-3 justify-center">
+            {[
+              { icon: Zap, label: 'Trending', color: 'red' },
+              { icon: Clock, label: 'Recent', color: 'blue' },
+              { icon: TrendingUp, label: 'Popular', color: 'green' },
+              { icon: Star, label: 'Top Rated', color: 'amber' },
+              { icon: MapPin, label: 'Near You', color: 'purple' },
+            ].map((item, idx) => {
+              const Icon = item.icon;
+              const colorClasses = {
+                red: 'text-red-600 bg-red-50 hover:bg-red-100 border-red-200',
+                blue: 'text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-200',
+                green: 'text-green-600 bg-green-50 hover:bg-green-100 border-green-200',
+                amber: 'text-amber-600 bg-amber-50 hover:bg-amber-100 border-amber-200',
+                purple: 'text-purple-600 bg-purple-50 hover:bg-purple-100 border-purple-200',
               };
               
               return (
-                <div
+                <motion.div
                   key={idx}
-                  className="group relative bg-gray-50 rounded-2xl p-8 
-                           hover:shadow-xl transform hover:-translate-y-1 
-                           transition-all duration-300 overflow-hidden"
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${colorMap[feature.color as keyof typeof colorMap]} 
-                                  opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-                  
-                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${colorMap[feature.color as keyof typeof colorMap]} 
-                                  flex items-center justify-center mb-6 transform group-hover:scale-110 
-                                  group-hover:rotate-3 transition-all duration-300`}>
-                    <Icon className="h-7 w-7 text-white" />
-                  </div>
-                  
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h3>
-                  <p className="text-gray-600">{feature.desc}</p>
-                </div>
+                  <Link
+                    to={`/shop?sort=${item.label.toLowerCase()}`}
+                    className={`flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 border ${colorClasses[item.color as keyof typeof colorClasses]} shadow-sm`}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </Link>
+                </motion.div>
               );
             })}
           </div>
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section className="py-20">
+      {/* Categories - With interactive colors */}
+      <section className="py-12">
         <div className="container-custom">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Shop by Category</h2>
+            <Link to="/shop" className="text-primary-800 hover:text-primary-900 text-sm font-medium flex items-center">
+              View all <ChevronRight className="h-4 w-4 ml-1" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            {categories.map((category) => {
+              const Icon = category.icon;
+              const colorMap = {
+                'Textbooks': { bg: 'bg-blue-50', text: 'text-blue-600', hoverBg: 'hover:bg-blue-100', hoverText: 'hover:text-blue-700', gradient: 'from-blue-500 to-blue-600' },
+                'Electronics': { bg: 'bg-purple-50', text: 'text-purple-600', hoverBg: 'hover:bg-purple-100', hoverText: 'hover:text-purple-700', gradient: 'from-purple-500 to-purple-600' },
+                'Hostel': { bg: 'bg-green-50', text: 'text-green-600', hoverBg: 'hover:bg-green-100', hoverText: 'hover:text-green-700', gradient: 'from-green-500 to-green-600' },
+                'Fashion': { bg: 'bg-pink-50', text: 'text-pink-600', hoverBg: 'hover:bg-pink-100', hoverText: 'hover:text-pink-700', gradient: 'from-pink-500 to-pink-600' },
+                'Tech': { bg: 'bg-orange-50', text: 'text-orange-600', hoverBg: 'hover:bg-orange-100', hoverText: 'hover:text-orange-700', gradient: 'from-orange-500 to-orange-600' },
+                'Stationery': { bg: 'bg-yellow-50', text: 'text-yellow-600', hoverBg: 'hover:bg-yellow-100', hoverText: 'hover:text-yellow-700', gradient: 'from-yellow-500 to-yellow-600' },
+              };
+              
+              const colors = colorMap[category.name as keyof typeof colorMap];
+
+              return (
+                <motion.div
+                  key={category.name}
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
+                  <Link
+                    to={`/shop?category=${category.name.toLowerCase()}`}
+                    className="group block"
+                  >
+                    <div className={`bg-white rounded-xl p-4 text-center hover:shadow-lg transition-all duration-300 border border-gray-100 relative overflow-hidden`}>
+                      {/* Animated background on hover */}
+                      <motion.div 
+                        className={`absolute inset-0 ${colors.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
+                        initial={false}
+                      />
+                      
+                      {/* Icon with gradient */}
+                      <motion.div 
+                        className={`relative w-10 h-10 rounded-full bg-gradient-to-br ${colors.gradient} mx-auto mb-2 flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300`}
+                        whileHover={{ rotate: [0, -10, 10, -5, 5, 0] }}
+                        transition={{ duration: 0.5 }}
+                      >
+                        <Icon className="h-5 w-5 text-white" />
+                      </motion.div>
+                      
+                      {/* Category name with color transition */}
+                      <h3 className={`relative font-medium text-sm mb-1 transition-colors duration-300 ${colors.text} group-hover:${colors.hoverText}`}>
+                        {category.name}
+                      </h3>
+                      
+                      <p className="relative text-xs text-gray-500">{category.count}</p>
+                      
+                      {/* Animated underline on hover */}
+                      <motion.div 
+                        className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${colors.gradient}`}
+                        initial={{ scaleX: 0 }}
+                        whileHover={{ scaleX: 1 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products - Denser grid */}
+      <section className="py-12 bg-white">
+        <div className="container-custom">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                Featured Products
-              </h2>
-              <p className="text-lg text-gray-600">
-                Discover the most popular items on campus right now
-              </p>
+              <h2 className="text-2xl font-bold text-gray-900">Featured Items</h2>
+              <p className="text-sm text-gray-500">Popular on campus right now</p>
             </div>
-            <Link 
-              to="/shop" 
-              className="group flex items-center space-x-2 text-blue-600 font-semibold 
-                       hover:text-blue-700 mt-4 md:mt-0"
-            >
-              <span>View All Products</span>
-              <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            <Link to="/shop" className="text-primary-800 hover:text-primary-900 text-sm font-medium flex items-center">
+              View all <ChevronRight className="h-4 w-4 ml-1" />
             </Link>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {featuredProducts.length > 0 ? (
               featuredProducts.map((product, index) => (
-                <div
+                <motion.div
                   key={product.id}
-                  className="animate-float"
-                  style={{ animationDelay: `${index * 100}ms` }}
+                  whileHover={{ y: -4 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                 >
-                  <ProductCard product={product} />
-                </div>
+                  {user ? (
+                    <ProductCard product={product} compact />
+                  ) : (
+                    <BlurredProduct index={index} compact />
+                  )}
+                </motion.div>
               ))
             ) : (
-              // Skeleton loading state
-              [...Array(3)].map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
-                  <div className="h-48 bg-gray-200 rounded-xl mb-4 animate-shimmer"></div>
-                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-2 animate-shimmer"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-4 animate-shimmer"></div>
-                  <div className="h-10 bg-gray-200 rounded animate-shimmer"></div>
-                </div>
+              // Compact skeleton
+              [...Array(6)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="bg-gray-100 rounded-lg p-3 animate-pulse"
+                >
+                  <div className="aspect-square bg-gray-200 rounded-lg mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-3/4 mb-1"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </motion.div>
               ))
             )}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="relative py-20 overflow-hidden">
-        <div className="absolute inset-0">
-          <img 
-            src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=1950&q=80" 
-            alt="Students studying"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/95 to-indigo-900/95"></div>
+      {/* Features - With interactive colors */}
+      <section className="py-12">
+        <div className="container-custom">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Built for Campus Life</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { 
+                icon: Shield, 
+                title: 'Verified Students', 
+                desc: 'Only Babcock students',
+                gradient: 'from-blue-500 to-blue-600',
+                bg: 'bg-blue-50',
+                text: 'text-blue-600',
+                hoverText: 'group-hover:text-blue-700'
+              },
+              { 
+                icon: MapPin, 
+                title: 'Campus Pickup', 
+                desc: 'Meet on campus',
+                gradient: 'from-green-500 to-green-600',
+                bg: 'bg-green-50',
+                text: 'text-green-600',
+                hoverText: 'group-hover:text-green-700'
+              },
+              { 
+                icon: Clock, 
+                title: 'Quick Deals', 
+                desc: 'Fast transactions',
+                gradient: 'from-orange-500 to-orange-600',
+                bg: 'bg-orange-50',
+                text: 'text-orange-600',
+                hoverText: 'group-hover:text-orange-700'
+              },
+              { 
+                icon: Users, 
+                title: 'Active Community', 
+                desc: '2.5k+ students',
+                gradient: 'from-purple-500 to-purple-600',
+                bg: 'bg-purple-50',
+                text: 'text-purple-600',
+                hoverText: 'group-hover:text-purple-700'
+              },
+            ].map((feature, idx) => {
+              const Icon = feature.icon;
+              return (
+                <motion.div
+                  key={idx}
+                  whileHover={{ scale: 1.03, y: -3 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  className="group relative"
+                >
+                  <div className="bg-white rounded-xl p-5 text-center border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+                    {/* Animated background on hover */}
+                    <motion.div 
+                      className={`absolute inset-0 ${feature.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
+                      initial={false}
+                    />
+                    
+                    {/* Icon container */}
+                    <motion.div 
+                      className={`relative w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} mx-auto mb-3 flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300`}
+                      whileHover={{ rotate: [0, -5, 5, -3, 3, 0] }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <Icon className="h-7 w-7 text-white" />
+                    </motion.div>
+                    
+                    {/* Title */}
+                    <h3 className={`relative font-semibold text-gray-900 mb-1 transition-colors duration-300 ${feature.hoverText}`}>
+                      {feature.title}
+                    </h3>
+                    
+                    <p className="relative text-sm text-gray-500 group-hover:text-gray-600 transition-colors duration-300">
+                      {feature.desc}
+                    </p>
+                    
+                    {/* Bottom accent line */}
+                    <motion.div 
+                      className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${feature.gradient}`}
+                      initial={{ scaleX: 0 }}
+                      whileHover={{ scaleX: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
+      </section>
 
-        <div className="container-custom relative">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-              Ready to Start Selling?
-            </h2>
-            <p className="text-xl text-blue-100 mb-8">
-              Join hundreds of students earning money by selling their unused items. 
-              It's free and takes less than 5 minutes!
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/sell"
-                className="group bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold 
-                         hover:shadow-2xl transform hover:scale-105 transition-all duration-300
-                         flex items-center justify-center space-x-2"
-              >
-                <span>Start Selling Now</span>
-                <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
-              
-              <Link
-                to="/shop"
-                className="group border-2 border-white text-white px-8 py-4 rounded-xl 
-                         font-semibold hover:bg-white/10 transform hover:scale-105 
-                         transition-all duration-300"
-              >
-                Browse Items
-              </Link>
+      {/* CTA - Compact */}
+      <section className="py-12 bg-primary-900">
+        <div className="container-custom">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-1">Ready to sell?</h2>
+              <p className="text-primary-100">List your items for free. Takes 2 minutes.</p>
             </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-8 mt-12">
-              <div>
-                <div className="text-3xl font-bold text-white">₦2.5M+</div>
-                <div className="text-sm text-blue-200">Monthly Sales</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-white">500+</div>
-                <div className="text-sm text-blue-200">Active Sellers</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-white">1k+</div>
-                <div className="text-sm text-blue-200">Items Listed</div>
-              </div>
-            </div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button size="lg" className="bg-accent-500 hover:bg-accent-600 text-primary-900 px-8" asChild>
+                <Link to="/sell">
+                  Start Selling
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </motion.div>
           </div>
         </div>
       </section>

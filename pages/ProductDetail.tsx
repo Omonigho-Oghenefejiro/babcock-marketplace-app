@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Star, Shield, ArrowLeft, Plus, Minus, ShoppingCart, Smartphone, MessageSquare } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
@@ -12,11 +12,24 @@ const ProductDetail = () => {
   // Allow string to handle empty input during typing
   const [qty, setQty] = useState<number | string>(1);
 
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!user) {
+      navigate('/login', { 
+        state: { from: `/product/${id}`, message: 'Please sign in to view product details' }
+      });
+    }
+  }, [user, navigate, id]);
+
+  if (!user) {
+    return null; // Will redirect, so return nothing
+  }
+
   if (!product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
         <h2 className="text-2xl font-bold">Product Not Found</h2>
-        <Link to="/shop" className="text-blue-600 hover:underline mt-4 block">Back to Shop</Link>
+        <Link to="/shop" className="text-primary-800 hover:underline mt-4 block">Back to Shop</Link>
       </div>
     );
   }
