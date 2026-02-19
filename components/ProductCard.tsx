@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Heart, ShoppingCart, Star, Eye } from 'lucide-react';
 import { Product } from '../types';
 import { useStore } from '../contexts/StoreContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 
@@ -12,12 +12,47 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) => {
-  const { addToCart, toggleWishlist, wishlist } = useStore();
+  const { user, addToCart, toggleWishlist, wishlist } = useStore();
+  const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const isWishlisted = wishlist.some(item => item.id === product.id);
   const mainImage = product.images?.[0] || 'https://placehold.co/400x400/e2e8f0/1e293b?text=No+Image';
+
+  const handleAddToCart = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!user) {
+      navigate('/login', { 
+        state: { 
+          from: `/product/${product.id}`, 
+          message: 'Sign in to add items to your cart',
+          pendingAction: { type: 'cart', productId: product.id }
+        } 
+      });
+      return;
+    }
+    addToCart(product);
+  };
+
+  const handleToggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      navigate('/login', { 
+        state: { 
+          from: `/product/${product.id}`, 
+          message: 'Sign in to save items to your wishlist',
+          pendingAction: { type: 'wishlist', productId: product.id }
+        } 
+      });
+      return;
+    }
+    toggleWishlist(product);
+  };
 
   // Compact view
   if (compact) {
@@ -40,11 +75,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
               <Button 
                 size="sm" 
                 className="h-7 px-2 text-xs bg-primary-800 hover:bg-primary-900"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  addToCart(product);
-                }}
+                onClick={handleAddToCart}
               >
                 Add
               </Button>
@@ -92,11 +123,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
 
         {/* Wishlist button - subtle until hover */}
         <button 
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleWishlist(product);
-          }}
+          onClick={handleToggleWishlist}
           className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-200 ${
             isWishlisted 
               ? 'bg-pink-500 text-white' 
@@ -151,7 +178,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
           
           <Button
             size="sm"
-            onClick={() => addToCart(product)}
+            onClick={() => handleAddToCart()}
             disabled={!product.inStock}
             className={product.inStock 
               ? 'bg-primary-800 hover:bg-primary-900 text-white' 

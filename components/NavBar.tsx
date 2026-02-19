@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   ShoppingCart, 
   User, 
@@ -7,7 +7,8 @@ import {
   Search, 
   Heart, 
   GraduationCap,
-  X
+  X,
+  LogOut
 } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { Button } from './ui/button';
@@ -15,8 +16,9 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 
 const Navbar = () => {
-  const { user, cart, wishlist, searchQuery, setSearchQuery } = useStore();
+  const { user, cart, wishlist, searchQuery, setSearchQuery, logout } = useStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -121,13 +123,25 @@ const Navbar = () => {
               </Link>
 
               {user ? (
-                <Link
-                  to="/dashboard"
-                  className="flex items-center space-x-2 px-3 py-2 bg-primary-50 text-primary-800 rounded-md hover:bg-primary-100 transition-colors"
-                >
-                  <User className="h-4 w-4" />
-                  <span className="text-sm font-medium">Profile</span>
-                </Link>
+                <div className="flex items-center space-x-2">
+                  <Link
+                    to="/dashboard"
+                    className="flex items-center space-x-2 px-3 py-2 bg-primary-50 text-primary-800 rounded-md hover:bg-primary-100 transition-colors"
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="text-sm font-medium">{user.name?.split(' ')[0] || 'Profile'}</span>
+                  </Link>
+                  <button
+                    onClick={() => {
+                      logout();
+                      navigate('/');
+                    }}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    title="Sign Out"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </div>
               ) : (
                 <Button asChild className="bg-primary-800 hover:bg-primary-900 text-white">
                   <Link to="/login">
@@ -230,11 +244,13 @@ const Navbar = () => {
                     </Link>
                     <button
                       onClick={() => {
-                        // logout logic
+                        logout();
                         setIsMenuOpen(false);
+                        navigate('/');
                       }}
-                      className="block px-4 py-2 text-red-600 hover:bg-red-50 rounded-md"
+                      className="w-full flex items-center px-4 py-2 text-red-600 hover:bg-red-50 rounded-md"
                     >
+                      <LogOut className="h-4 w-4 mr-2" />
                       Sign Out
                     </button>
                   </>

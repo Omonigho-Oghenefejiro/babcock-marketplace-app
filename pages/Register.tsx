@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   GraduationCap, 
@@ -8,70 +8,98 @@ import {
   Eye, 
   EyeOff,
   ArrowRight,
+  User,
+  Phone,
   BookOpen,
-  Laptop,
-  Coffee,
   Users,
   Shield,
-  Sparkles
+  Sparkles,
+  CheckCircle
 } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 
-const Login = () => {
+const Register = () => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
   
   const { login } = useStore();
   const navigate = useNavigate();
-  const location = useLocation();
-  
-  const from = (location.state as any)?.from || '/';
-  const message = (location.state as any)?.message;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!name || !email || !password) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (!email.includes('@babcock.edu.ng')) {
+      setError('Please use your Babcock University email (@babcock.edu.ng)');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (!agreeToTerms) {
+      setError('Please agree to the terms and conditions');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Authenticate with backend
-      await login(email, password);
-      navigate(from, { replace: true });
+      // Use login which will register if user doesn't exist
+      await login(email);
+      navigate('/', { replace: true });
     } catch (err) {
-      setError('Invalid email or password');
+      setError('Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const demoAccounts = [
-    { email: 'student@babcock.edu.ng', role: 'Student', color: 'blue' },
-    { email: 'seller@babcock.edu.ng', role: 'Seller', color: 'green' },
-    { email: 'admin@babcock.edu.ng', role: 'Admin', color: 'purple' },
+  const benefits = [
+    'Buy textbooks at half the price',
+    'Sell items to 2,500+ students',
+    'Safe campus-only transactions',
+    'AI-powered product suggestions'
   ];
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex">
-      {/* Left Panel - Login Form */}
+      {/* Left Panel - Register Form */}
       <motion.div 
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full lg:w-1/2 flex items-center justify-center p-8"
+        className="w-full lg:w-1/2 flex items-center justify-center p-8 overflow-y-auto"
       >
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md py-8">
           {/* Logo */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            className="flex items-center justify-center mb-8"
+            className="flex items-center justify-center mb-6"
           >
             <div className="bg-primary-800 p-3 rounded-xl">
               <GraduationCap className="h-8 w-8 text-white" />
@@ -87,21 +115,12 @@ const Login = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-center mb-8"
+            className="text-center mb-6"
           >
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
             <p className="text-gray-600">
-              Sign in to continue to Babcock Marketplace
+              Join the Babcock student marketplace
             </p>
-            {message && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-4 p-3 bg-amber-50 text-amber-800 rounded-lg text-sm"
-              >
-                {message}
-              </motion.div>
-            )}
           </motion.div>
 
           {/* Form */}
@@ -110,7 +129,7 @@ const Login = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             onSubmit={handleSubmit}
-            className="space-y-6"
+            className="space-y-4"
           >
             {error && (
               <motion.div
@@ -122,9 +141,28 @@ const Login = () => {
               </motion.div>
             )}
 
+            {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
+                Full Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Babcock Email
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -137,8 +175,27 @@ const Login = () => {
                   required
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-1">Must be your @babcock.edu.ng email</p>
             </div>
 
+            {/* Phone */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number (Optional)
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="0801 234 5678"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Password
@@ -163,14 +220,38 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center">
-                <input type="checkbox" className="rounded border-gray-300 text-primary-800 focus:ring-primary-500" />
-                <span className="ml-2 text-sm text-gray-600">Remember me</span>
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm Password
               </label>
-              <Link to="/forgot-password" className="text-sm text-primary-800 hover:text-primary-900">
-                Forgot password?
-              </Link>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Terms */}
+            <div className="flex items-start">
+              <input 
+                type="checkbox" 
+                checked={agreeToTerms}
+                onChange={(e) => setAgreeToTerms(e.target.checked)}
+                className="mt-1 rounded border-gray-300 text-primary-800 focus:ring-primary-500" 
+              />
+              <span className="ml-2 text-sm text-gray-600">
+                I agree to the{' '}
+                <a href="#" className="text-primary-800 hover:underline">Terms of Service</a>
+                {' '}and{' '}
+                <a href="#" className="text-primary-800 hover:underline">Privacy Policy</a>
+              </span>
             </div>
 
             <Button
@@ -186,58 +267,29 @@ const Login = () => {
                 />
               ) : (
                 <>
-                  Sign In
+                  Create Account
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}
             </Button>
           </motion.form>
 
-          {/* Demo Accounts */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="mt-8"
-          >
-            <p className="text-center text-sm text-gray-500 mb-4">
-              Demo Accounts (Click to fill)
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {demoAccounts.map((account) => (
-                <motion.button
-                  key={account.email}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setEmail(account.email)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors
-                    ${account.color === 'blue' ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : ''}
-                    ${account.color === 'green' ? 'bg-green-50 text-green-700 hover:bg-green-100' : ''}
-                    ${account.color === 'purple' ? 'bg-purple-50 text-purple-700 hover:bg-purple-100' : ''}
-                  `}
-                >
-                  {account.role}
-                </motion.button>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Sign Up Link */}
+          {/* Sign In Link */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-center text-sm text-gray-600 mt-8"
+            className="text-center text-sm text-gray-600 mt-6"
           >
-            Don't have an account?{' '}
-            <Link to="/register" className="text-primary-800 font-medium hover:text-primary-900">
-              Sign up with your Babcock email
+            Already have an account?{' '}
+            <Link to="/login" className="text-primary-800 font-medium hover:text-primary-900">
+              Sign in
             </Link>
           </motion.p>
         </div>
       </motion.div>
 
-      {/* Right Panel - Hero Section with reduced whitespace */}
+      {/* Right Panel - Hero Section */}
       <motion.div 
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -270,34 +322,53 @@ const Login = () => {
             transition={{ delay: 0.2 }}
           >
             <Badge variant="outline" className="border-white/30 text-white mb-8 px-4 py-2">
-              <GraduationCap className="h-4 w-4 mr-2" />
-              Babcock University • Est. 1959
+              <Sparkles className="h-4 w-4 mr-2" />
+              Join 2,500+ Students
             </Badge>
           </motion.div>
 
-          {/* Main heading - more compact */}
+          {/* Main heading */}
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             className="text-4xl font-bold text-center mb-4 leading-tight"
           >
-            Join the Largest
-            <span className="block text-accent-400">Campus Marketplace</span>
+            Start Trading
+            <span className="block text-accent-400">On Campus Today</span>
           </motion.h2>
 
-          {/* Features grid - more compact */}
+          {/* Benefits List */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="grid grid-cols-2 gap-4 mt-8 w-full max-w-lg"
+            className="mt-8 space-y-4 w-full max-w-md"
+          >
+            {benefits.map((benefit, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 + index * 0.1 }}
+                className="flex items-center gap-3 bg-white/10 rounded-lg p-4 backdrop-blur-sm"
+              >
+                <CheckCircle className="h-5 w-5 text-accent-400 flex-shrink-0" />
+                <span className="text-sm font-medium">{benefit}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="grid grid-cols-2 gap-4 mt-8 w-full max-w-md"
           >
             {[
               { icon: Users, text: '2,500+ Students', color: 'bg-blue-500/20' },
               { icon: BookOpen, text: '1,800+ Items', color: 'bg-green-500/20' },
-              { icon: Laptop, text: 'Safe Trading', color: 'bg-purple-500/20' },
-              { icon: Coffee, text: 'Campus Pickup', color: 'bg-orange-500/20' },
             ].map((feature, index) => {
               const Icon = feature.icon;
               return (
@@ -313,41 +384,15 @@ const Login = () => {
             })}
           </motion.div>
 
-          {/* Testimonial - more compact */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="mt-8 bg-white/10 rounded-xl p-6 backdrop-blur-sm max-w-md"
-          >
-            <div className="flex items-center mb-3">
-              {[...Array(5)].map((_, i) => (
-                <Sparkles key={i} className="h-4 w-4 text-accent-400 fill-accent-400" />
-              ))}
-            </div>
-            <p className="text-sm text-white/90 italic">
-              "Found all my textbooks at half the price! Best decision ever."
-            </p>
-            <div className="flex items-center mt-3">
-              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                <Users className="h-4 w-4" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium">Sarah O.</p>
-                <p className="text-xs text-white/60">300 Level, Accounting</p>
-              </div>
-            </div>
-          </motion.div>
-
           {/* Security badge */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.7 }}
             className="mt-8 flex items-center text-sm text-white/70"
           >
             <Shield className="h-4 w-4 mr-2" />
-            Verified by Babcock University
+            Campus-verified accounts only
           </motion.div>
         </div>
       </motion.div>
@@ -355,4 +400,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

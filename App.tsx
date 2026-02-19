@@ -10,6 +10,7 @@ import Shop from './pages/Shop';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import AdminDashboard from './pages/AdminDashboard';
 import Wishlist from './pages/Wishlist';
 import UserDashboard from './pages/UserDashboard';
@@ -29,6 +30,7 @@ const AnimatedRoutes = () => {
         <Route path="/cart" element={<Cart />} />
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/dashboard" element={<UserDashboard />} />
         <Route path="/sell" element={<SellItem />} />
@@ -39,19 +41,28 @@ const AnimatedRoutes = () => {
   );
 };
 
+const AppContent = () => {
+  const location = useLocation();
+  const isHomePage = location.pathname === '/';
+  
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Navbar />
+      <main className="flex-grow">
+        <AnimatedRoutes />
+      </main>
+      <AIAssistant />
+      {isHomePage && <Footer />}
+    </div>
+  );
+};
+
 const App = () => {
   return (
     <ToastProvider>
       <StoreProvider>
         <Router>
-          <div className="flex flex-col min-h-screen bg-gray-50">
-            <Navbar />
-            <main className="flex-grow">
-              <AnimatedRoutes />
-            </main>
-            <AIAssistant />
-            <Footer />
-          </div>
+          <AppContent />
         </Router>
       </StoreProvider>
     </ToastProvider>

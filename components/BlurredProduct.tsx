@@ -2,20 +2,20 @@ import { Link } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { Button } from './ui/button';
 
-interface BlurredProductProps {
-  index?: number;
-  compact?: boolean;
-}
-
-const BlurredProduct = ({ index = 0, compact = false }) => {
+const BlurredProduct = ({ index = 0, compact = false }: { index?: number; compact?: boolean }) => {
   // Different blur intensities for visual variety
   const blurIntensities = ['blur-sm', 'blur', 'blur-md', 'blur-lg'];
   const blurClass = blurIntensities[index % blurIntensities.length];
 
+  const loginState = { 
+    from: '/shop', 
+    message: 'Sign in to view products and start shopping' 
+  };
+
   // Compact view
   if (compact) {
     return (
-      <div className="group relative bg-white rounded-lg overflow-hidden border border-gray-100">
+      <Link to="/login" state={loginState} className="group relative bg-white rounded-lg overflow-hidden border border-gray-100 block">
         <div className={`relative aspect-square bg-gray-200 ${blurClass}`}>
           <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300"></div>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center">
@@ -27,12 +27,12 @@ const BlurredProduct = ({ index = 0, compact = false }) => {
           <div className={`h-3 bg-gray-200 rounded w-1/2 mb-2 ${blurClass}`}></div>
           <div className={`h-4 bg-gray-200 rounded w-16 ${blurClass}`}></div>
         </div>
-      </div>
+      </Link>
     );
   }
 
   return (
-    <div className="group relative bg-white rounded-lg shadow-sm overflow-hidden">
+    <Link to="/login" state={loginState} className="group relative bg-white rounded-lg shadow-sm overflow-hidden block cursor-pointer">
       {/* Image container with blur */}
       <div className={`relative aspect-square bg-gray-100 ${blurClass}`}>
         <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300"></div>
@@ -66,13 +66,11 @@ const BlurredProduct = ({ index = 0, compact = false }) => {
 
       {/* Sign in prompt on hover */}
       <div className="absolute inset-0 bg-primary-900/90 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-        <Link to="/login">
-          <Button className="bg-white text-primary-900 hover:bg-gray-100">
-            Sign in to view products
-          </Button>
-        </Link>
+        <Button className="bg-white text-primary-900 hover:bg-gray-100">
+          Sign in to view products
+        </Button>
       </div>
-    </div>
+    </Link>
   );
 };
 

@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { CheckCircle, XCircle, Loader } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { CheckCircle, XCircle, Loader, CreditCard, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import API from '../services/api';
+import { Button } from '../components/ui/button';
 
 const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
@@ -59,45 +61,103 @@ const PaymentCallback = () => {
   }, [reference, cart, clearCart]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-24 text-center">
-      {status === 'verifying' && (
-        <div>
-          <Loader className="h-16 w-16 text-blue-600 animate-spin mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-gray-900">Verifying Payment...</h2>
-          <p className="text-gray-500">Please wait while we confirm your transaction.</p>
-        </div>
-      )}
+    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4">
+      <motion.div 
+        className="max-w-md w-full"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        {status === 'verifying' && (
+          <motion.div 
+            className="bg-white/10 backdrop-blur-sm rounded-3xl p-12 text-center border border-white/20 shadow-2xl"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="w-20 h-20 mx-auto mb-8"
+            >
+              <Loader className="h-20 w-20 text-white" />
+            </motion.div>
+            <h2 className="text-2xl font-bold text-white mb-2">Verifying Payment...</h2>
+            <p className="text-white/70">Please wait while we confirm your transaction.</p>
+          </motion.div>
+        )}
 
-      {status === 'success' && (
-        <div className="animate-fade-in-up">
-          <div className="bg-green-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-12 w-12 text-green-600" />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
-          <p className="text-gray-500 mb-8">Thank you for your purchase. Your order has been placed.</p>
-          <div className="flex justify-center space-x-4">
-             <Link to="/dashboard" className="bg-blue-600 text-white px-8 py-3 rounded-full font-medium hover:bg-blue-700 transition-colors">
-               View Order
-             </Link>
-             <Link to="/shop" className="bg-white border border-gray-300 text-gray-700 px-8 py-3 rounded-full font-medium hover:bg-gray-50 transition-colors">
-               Continue Shopping
-             </Link>
-          </div>
-        </div>
-      )}
+        {status === 'success' && (
+          <motion.div 
+            className="bg-white rounded-3xl p-10 text-center shadow-2xl"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <motion.div 
+              className="w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", bounce: 0.5 }}
+            >
+              <CheckCircle className="h-12 w-12 text-white" />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
+              <p className="text-gray-500 mb-8">Thank you for your purchase. Your order has been placed.</p>
+              <div className="flex flex-col sm:flex-row justify-center gap-3">
+                <Link to="/dashboard">
+                  <Button className="w-full sm:w-auto bg-gradient-to-r from-primary-700 to-primary-800 hover:from-primary-800 hover:to-primary-900 text-white px-8 py-3 rounded-full font-medium shadow-lg">
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    View Order
+                  </Button>
+                </Link>
+                <Link to="/shop">
+                  <Button variant="outline" className="w-full sm:w-auto border-2 border-gray-200 text-gray-700 px-8 py-3 rounded-full font-medium hover:bg-gray-50">
+                    <ShoppingBag className="h-4 w-4 mr-2" />
+                    Continue Shopping
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
 
-      {status === 'failed' && (
-        <div className="animate-fade-in-up">
-          <div className="bg-red-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-            <XCircle className="h-12 w-12 text-red-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Failed</h2>
-          <p className="text-gray-500 mb-8">We couldn't verify your transaction. Please contact support if you were debited.</p>
-          <Link to="/cart" className="bg-blue-600 text-white px-8 py-3 rounded-full font-medium hover:bg-blue-700 transition-colors">
-            Return to Cart
-          </Link>
-        </div>
-      )}
+        {status === 'failed' && (
+          <motion.div 
+            className="bg-white rounded-3xl p-10 text-center shadow-2xl"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <motion.div 
+              className="w-24 h-24 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", bounce: 0.5 }}
+            >
+              <XCircle className="h-12 w-12 text-white" />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Failed</h2>
+              <p className="text-gray-500 mb-8">We couldn't verify your transaction. Please contact support if you were debited.</p>
+              <Link to="/cart">
+                <Button className="bg-gradient-to-r from-primary-700 to-primary-800 hover:from-primary-800 hover:to-primary-900 text-white px-8 py-3 rounded-full font-medium shadow-lg">
+                  Return to Cart
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
+            </motion.div>
+          </motion.div>
+        )}
+      </motion.div>
     </div>
   );
 };

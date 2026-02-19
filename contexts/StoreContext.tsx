@@ -16,7 +16,7 @@ interface StoreContextType {
   disputes: Dispute[];
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  login: (email: string, role?: UserRole) => Promise<void>;
+  login: (email: string, password?: string, role?: UserRole) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   addToCart: (product: Product, quantity?: number) => void;
@@ -46,8 +46,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   // -- Auth State --
   const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
+    const savedUser = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('token');
+    // Only restore user if we also have a token (or it's a mock user)
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      // If no token and not a mock user ID, clear state
+      if (!savedToken && !parsed.id?.startsWith('u-') && !['1001', '1002', '101', '102'].includes(parsed.id)) {
+        localStorage.removeItem('user');
+        return null;
+      }
+      return parsed;
+    }
+    return null;
   });
 
   // -- Data State --
@@ -55,7 +66,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [orders, setOrders] = useState<Order[]>([]);
   // Initialize with ALL mock users so Admin dashboard is populated
   const [allUsers, setAllUsers] = useState<User[]>([...EXTRA_USERS, MOCK_USER, MOCK_ADMIN]); 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    // Load saved conversations from localStorage for demo mode
+    const saved = localStorage.getItem('conversations');
+    return saved ? JSON.parse(saved) : [];
+  });
   
   // -- Client-side persist State --
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -75,6 +90,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // -- Effects --
   useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem('wishlist', JSON.stringify(wishlist)); }, [wishlist]);
+  // Persist conversations to localStorage for demo mode (when no token)
+  useEffect(() => { 
+    const token = localStorage.getItem('token');
+    if (!token && conversations.length > 0 && user) {
+      // Merge with existing conversations from other users
+      const saved = localStorage.getItem('conversations');
+      const existingConversations: Conversation[] = saved ? JSON.parse(saved) : [];
+      // Remove current user's old conversations and add new ones
+      const otherUsersConversations = existingConversations.filter(c => 
+        !c.participants?.includes(user.id)
+      );
+      const allConversations = [...otherUsersConversations, ...conversations];
+      localStorage.setItem('conversations', JSON.stringify(allConversations)); 
+    }
+  }, [conversations, user]);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -91,6 +121,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // No token means we're in demo mode - just use empty orders
+      setOrders([]);
+      return;
+    }
     try {
       const { data } = await API.get('/orders/myorders');
       setOrders(data);
@@ -102,12 +138,38 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const fetchConversations = useCallback(async () => {
     if (!user) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // No token means we're in demo mode - load from localStorage if available
+      const saved = localStorage.getItem('conversations');
+      if (saved) {
+        const savedConversations: Conversation[] = JSON.parse(saved);
+        // Filter conversations for current user
+        const userConversations = savedConversations.filter(c => 
+          c.participants?.includes(user.id)
+        );
+        if (userConversations.length > 0) {
+          setConversations(userConversations);
+        }
+      }
+      return;
+    }
     try {
       const { data } = await API.get('/messages');
       setConversations(data);
     } catch (error) {
-      console.warn("Backend unreachable, loading mock conversations.");
-      setConversations(MOCK_CONVERSATIONS);
+      console.warn("Backend unreachable, loading from localStorage.");
+      // In case of error, try localStorage first
+      const saved = localStorage.getItem('conversations');
+      if (saved) {
+        const savedConversations: Conversation[] = JSON.parse(saved);
+        const userConversations = savedConversations.filter(c => 
+          c.participants?.includes(user.id)
+        );
+        setConversations(userConversations);
+      } else {
+        setConversations(MOCK_CONVERSATIONS);
+      }
     }
   }, [user]);
 
@@ -132,24 +194,49 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // -- Actions --
 
-  const login = async (email: string, role?: UserRole) => {
+  const login = async (email: string, password: string = 'password123', role?: UserRole) => {
     try {
-      const { data } = await API.post('/auth/login', { email, password: 'password123' });
-      setUser(data);
-      localStorage.setItem('user', JSON.stringify(data));
-      addToast(`Welcome back, ${data.name}!`);
+      const { data } = await API.post('/auth/login', { email, password });
+      // Backend returns { token, user }
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      const userData = data.user || data;
+      // Map backend user format to frontend format
+      const mappedUser = {
+        id: userData.id || userData._id,
+        name: userData.fullName || userData.name,
+        email: userData.email,
+        role: userData.role || 'student',
+        avatar: userData.profileImage || userData.avatar || 'https://placehold.co/100x100/e2e8f0/1e293b?text=User'
+      };
+      setUser(mappedUser);
+      localStorage.setItem('user', JSON.stringify(mappedUser));
+      addToast(`Welcome back, ${mappedUser.name}!`);
     } catch (error: any) {
        // Attempt Register as fallback for demo
        try {
          const { data } = await API.post('/auth/register', { 
-            name: email.split('@')[0], 
+            fullName: email.split('@')[0], 
             email, 
-            password: 'password123', 
-            role: role || 'student' 
+            password: password || 'password123',
+            phone: '08000000000'
          });
-         setUser(data);
-         localStorage.setItem('user', JSON.stringify(data));
-         addToast(`Account created! Welcome, ${data.name}!`);
+         // Backend returns { token, user }
+         if (data.token) {
+           localStorage.setItem('token', data.token);
+         }
+         const userData = data.user || data;
+         const mappedUser = {
+           id: userData.id || userData._id,
+           name: userData.fullName || userData.name,
+           email: userData.email,
+           role: userData.role || 'student',
+           avatar: userData.profileImage || userData.avatar || 'https://placehold.co/100x100/e2e8f0/1e293b?text=User'
+         };
+         setUser(mappedUser);
+         localStorage.setItem('user', JSON.stringify(mappedUser));
+         addToast(`Account created! Welcome, ${mappedUser.name}!`);
        } catch (regError) {
          console.warn("Backend unreachable, using mock login.");
          // Mock Login Fallback
@@ -169,7 +256,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setUser(null);
     setCart([]);
     setWishlist([]);
+    setConversations([]);
+    setOrders([]);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    // Don't clear conversations from localStorage - they persist per user ID
     addToast('Logged out successfully', 'info');
   };
 
@@ -301,16 +392,22 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const sendMessage = async (receiverId: string, content: string, productId?: string) => {
+    if (!user) return;
+    
     try {
         await API.post('/messages', { receiverId, content, productId });
         fetchConversations();
     } catch (error) {
         // Fallback for demo: Update local state
         setConversations(prev => {
-            const existing = prev.find(c => c.participants.includes(receiverId) && (!productId || c.productId === productId));
+            const existing = prev.find(c => 
+              c.participants.includes(user.id) && 
+              c.participants.includes(receiverId) && 
+              (!productId || c.productId === productId)
+            );
             const newMessage = {
                 id: `m-${Date.now()}`,
-                senderId: user?.id || '',
+                senderId: user.id,
                 content,
                 timestamp: new Date().toISOString(),
                 read: false
@@ -325,7 +422,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             }
             return [...prev, {
                 id: `c-${Date.now()}`,
-                participants: [user?.id || '', receiverId],
+                participants: [user.id, receiverId],
                 messages: [newMessage],
                 productId,
                 updatedAt: new Date().toISOString()

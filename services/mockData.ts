@@ -131,45 +131,53 @@ export const PRODUCTS: Product[] = [
 
 export const MOCK_USER: User = {
   id: '1001',
+  name: 'Jane Buyer',
   fullName: 'Jane Buyer',
   email: 'buyer@babcock.edu.ng',
   phone: '08012345680',
   role: 'user',
   isVerified: true,
-  profileImage: 'https://via.placeholder.com/150?text=Jane+Buyer',
+  avatar: 'https://placehold.co/150x150/e2e8f0/1e293b?text=JB',
+  profileImage: 'https://placehold.co/150x150/e2e8f0/1e293b?text=JB',
   ratings: 4.2,
 };
 
 export const MOCK_ADMIN: User = {
   id: '1002',
+  name: 'Admin User',
   fullName: 'Admin User',
   email: 'admin@babcock.edu.ng',
   phone: '08012345679',
   role: 'admin',
   isVerified: true,
-  profileImage: 'https://via.placeholder.com/150?text=Admin',
+  avatar: 'https://placehold.co/150x150/e2e8f0/1e293b?text=AD',
+  profileImage: 'https://placehold.co/150x150/e2e8f0/1e293b?text=AD',
   ratings: 5,
 };
 
 export const EXTRA_USERS: User[] = [
   {
     id: '101',
+    name: 'John Seller',
     fullName: 'John Seller',
     email: 'seller@babcock.edu.ng',
     phone: '08012345678',
     role: 'seller',
     isVerified: true,
-    profileImage: 'https://via.placeholder.com/150?text=John+Seller',
+    avatar: 'https://placehold.co/150x150/e2e8f0/1e293b?text=JS',
+    profileImage: 'https://placehold.co/150x150/e2e8f0/1e293b?text=JS',
     ratings: 4.5,
   },
   {
     id: '102',
+    name: 'Sarah Smith',
     fullName: 'Sarah Smith',
     email: 'sarah@babcock.edu.ng',
     phone: '08012345681',
     role: 'user',
     isVerified: true,
-    profileImage: 'https://via.placeholder.com/150?text=Sarah',
+    avatar: 'https://placehold.co/150x150/e2e8f0/1e293b?text=SS',
+    profileImage: 'https://placehold.co/150x150/e2e8f0/1e293b?text=SS',
     ratings: 4.8,
   },
 ];
