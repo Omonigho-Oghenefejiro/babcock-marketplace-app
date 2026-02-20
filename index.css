@@ -36,6 +36,7 @@
   p {
     @apply max-w-prose;
   }
+
 }
 
 @layer components {
