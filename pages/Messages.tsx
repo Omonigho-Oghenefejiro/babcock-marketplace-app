@@ -1,383 +1,266 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Send, Search, User, MoreVertical, ArrowLeft, MessageCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Search, ArrowLeft, MessageCircle, Check } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { Conversation } from '../types';
-import { fadeUpVariants } from '../lib/animations';
-import { Badge } from '../components/ui/badge';
+
+const t = {
+  green: '#1B4332',
+  greenMid: '#2D6A4F',
+  greenLight: '#D8F3DC',
+  greenPale: '#F0FAF2',
+  amber: '#F4A226',
+  cream: '#FAF7F2',
+  ink: '#1A1A1A',
+  muted: '#6B7280',
+  border: '#E8E2D9',
+};
+
+const Avatar = ({ name, size = 40, bg = t.green }: { name: string; size?: number; bg?: string }) => (
+  <div style={{
+    width: size, height: size, borderRadius: '50%',
+    background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontFamily: "'Syne', sans-serif", fontWeight: 800,
+    fontSize: size * 0.38, color: '#fff', flexShrink: 0,
+  }}>
+    {name?.[0]?.toUpperCase() ?? '?'}
+  </div>
+);
 
 const Messages = () => {
   const { user, conversations, sendMessage, markAsRead, allUsers, products } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
-  
-  // State for UI
+
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Handle creating new conversation context from navigation state
   const [tempConversation, setTempConversation] = useState<{
-    receiverId: string;
-    productId: string;
-    sellerName: string;
+    receiverId: string; productId: string; sellerName: string;
   } | null>(null);
 
-  // Redirect if not logged in
+  const markedRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (!user) {
-      navigate('/login', { state: { from: '/messages', message: 'Sign in to view your messages' } });
-    }
+    if (!user) navigate('/login', { state: { from: '/messages', message: 'Sign in to view messages' } });
   }, [user, navigate]);
 
-  // Handle navigation state for new chat
   useEffect(() => {
-    if (!user) return;
-    
-    // Check if we navigated here with intent to chat with someone
-    if (location.state?.sellerId) {
-      const { sellerId, productId } = location.state;
-      
-      // Look for existing conversation
-      const existing = conversations.find(c => 
-        c.participants.includes(user.id) && 
-        c.participants.includes(sellerId) &&
-        (productId ? c.productId === productId : true)
-      );
-
-      if (existing) {
-        setSelectedConvId(existing.id);
-      } else {
-        // Set up temporary state to show empty chat window
-        setTempConversation({
-            receiverId: sellerId,
-            productId,
-            sellerName: allUsers.find(u => u.id === sellerId)?.name || 'Seller'
-        });
-        setSelectedConvId('new');
-      }
+    if (!user || !location.state?.sellerId) return;
+    const { sellerId, productId } = location.state;
+    const existing = conversations.find(c =>
+      c.participants.includes(user.id) &&
+      c.participants.includes(sellerId) &&
+      (!productId || c.productId === productId)
+    );
+    if (existing) {
+      setSelectedConvId(existing.id);
+    } else {
+      setTempConversation({
+        receiverId: sellerId,
+        productId,
+        sellerName: allUsers.find(u => u.id === sellerId)?.name || 'Seller',
+      });
+      setSelectedConvId('new');
     }
-  }, [user, location.state, allUsers]);
+  }, [user, location.state, allUsers, conversations]);
 
-  // After sending a message in 'new' mode, switch to the actual conversation
   useEffect(() => {
-    if (selectedConvId === 'new' && tempConversation && user) {
-      // Look for conversation that was just created
-      const newConv = conversations.find(c => 
-        c.participants.includes(user.id) && 
-        c.participants.includes(tempConversation.receiverId) &&
-        (tempConversation.productId ? c.productId === tempConversation.productId : true)
-      );
-      if (newConv) {
-        setSelectedConvId(newConv.id);
-        setTempConversation(null);
-      }
+    if (selectedConvId !== 'new' || !tempConversation || !user) return;
+    const newConv = conversations.find(c =>
+      c.participants.includes(user.id) &&
+      c.participants.includes(tempConversation.receiverId) &&
+      (!tempConversation.productId || c.productId === tempConversation.productId)
+    );
+    if (newConv) {
+      setSelectedConvId(newConv.id);
+      setTempConversation(null);
     }
   }, [conversations, selectedConvId, tempConversation, user]);
 
-  // Track which conversations we've marked as read to prevent infinite loops
-  const markedAsReadRef = useRef<Set<string>>(new Set());
-
-  // Mark as read when opening a conversation
   useEffect(() => {
-    if (selectedConvId && selectedConvId !== 'new' && !markedAsReadRef.current.has(selectedConvId)) {
-        markedAsReadRef.current.add(selectedConvId);
-        markAsRead(selectedConvId);
-        setTempConversation(null);
-    }
-  }, [selectedConvId]);
+    if (!selectedConvId || selectedConvId === 'new' || markedRef.current.has(selectedConvId)) return;
+    markedRef.current.add(selectedConvId);
+    markAsRead(selectedConvId);
+    setTempConversation(null);
+  }, [selectedConvId, markAsRead]);
 
-  // Scroll to bottom of chat
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [conversations, selectedConvId]);
 
-  // Guard: show nothing while redirecting
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
-  // Helpers
-  const getOtherParticipantId = (conv: Conversation) => conv.participants?.find(p => p !== user?.id) || '';
-  
-  const getUserDetails = (userId: string) => {
-    if (!userId || !allUsers) return { name: 'Unknown User', avatar: 'https://placehold.co/40x40/e2e8f0/1e293b?text=U' };
-    return allUsers.find(u => u.id === userId) || { name: 'Unknown User', avatar: 'https://placehold.co/40x40/e2e8f0/1e293b?text=U' };
-  };
+  const getOtherId = (c: Conversation) => c.participants.find(p => p !== user.id) ?? '';
+  const getUser = (id: string) => allUsers.find(u => u.id === id) ?? { name: 'Unknown', id };
+  const getProduct = (pid?: string) => products.find(p => p.id === pid);
 
-  const getProductDetails = (productId?: string) => {
-    if (!productId) return null;
-    return products.find(p => p.id === productId);
-  };
-
-  // Filter conversations
-  const myConversations = conversations
-    .filter(c => c.participants.includes(user?.id || ''))
+  const myConvs = conversations
+    .filter(c => c.participants.includes(user.id))
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-  const filteredConversations = myConversations.filter(c => {
-    const otherId = getOtherParticipantId(c);
-    const otherUser = getUserDetails(otherId);
-    const userName = otherUser?.name || 'Unknown';
-    return userName.toLowerCase().includes(searchTerm.toLowerCase());
+  const filtered = myConvs.filter(c => {
+    const other = getUser(getOtherId(c));
+    return (other.name ?? '').toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  const currentConv = conversations.find(c => c.id === selectedConvId);
+  const activeChat: any = currentConv ?? (selectedConvId === 'new' && tempConversation
+    ? { id: 'new', participants: [user.id, tempConversation.receiverId], messages: [], productId: tempConversation.productId }
+    : null);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-
     if (selectedConvId === 'new' && tempConversation) {
-        sendMessage(tempConversation.receiverId, inputText, tempConversation.productId);
-        setInputText('');
-        // Don't clear tempConversation here - let the effect handle the switch
-    } else if (selectedConvId && selectedConvId !== 'new') {
-        const conv = conversations.find(c => c.id === selectedConvId);
-        if (conv) {
-             const receiverId = getOtherParticipantId(conv);
-             sendMessage(receiverId, inputText, conv.productId);
-             setInputText('');
-        }
+      sendMessage(tempConversation.receiverId, inputText, tempConversation.productId);
+    } else if (currentConv) {
+      sendMessage(getOtherId(currentConv), inputText, currentConv.productId);
     }
+    setInputText('');
   };
 
-  // Determine current chat view data
-  const currentConversation = conversations.find(c => c.id === selectedConvId);
-  
-  // If we are in "new" mode, simulate a conversation object
-  // Also check if the conversation now exists (after sending first message)
-  let activeChat: typeof currentConversation | { id: string; participants: string[]; messages: any[]; productId?: string; updatedAt: string } | null = null;
-  
-  if (currentConversation) {
-    activeChat = currentConversation;
-  } else if (selectedConvId === 'new' && tempConversation) {
-    // Check if conversation was just created
-    const justCreated = conversations.find(c => 
-      c.participants.includes(user?.id || '') && 
-      c.participants.includes(tempConversation.receiverId) &&
-      (tempConversation.productId ? c.productId === tempConversation.productId : !c.productId)
-    );
-    if (justCreated) {
-      activeChat = justCreated;
-    } else {
-      activeChat = {
-        id: 'new',
-        participants: [user?.id || '', tempConversation.receiverId],
-        messages: [],
-        productId: tempConversation.productId,
-        updatedAt: new Date().toISOString()
-      };
-    }
-  }
-
+  const activeChatOtherId = activeChat
+    ? (activeChat.id === 'new' && tempConversation ? tempConversation.receiverId : getOtherId(activeChat))
+    : null;
+  const activeChatOther = activeChatOtherId ? getUser(activeChatOtherId) : null;
+  const activeChatProduct = activeChat ? getProduct(activeChat.productId) : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-primary-900 via-primary-800 to-primary-900 py-8">
-        <div className="container-custom">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeUpVariants}
-          >
-            <Badge variant="secondary" className="mb-3 bg-white/10 text-white border-white/20">
-              <MessageCircle className="h-3 w-3 mr-1" />
-              Chat
-            </Badge>
-            <h1 className="text-3xl font-bold text-white">Messages</h1>
-            <p className="text-white/70 mt-1">Connect with buyers and sellers</p>
-          </motion.div>
+    <div style={{ background: t.cream, height: 'calc(100vh - 4rem)', display: 'flex', flexDirection: 'column', fontFamily: "'Instrument Sans', sans-serif" }}>
+      <div style={{ background: t.green, padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <MessageCircle size={18} color="#fff" />
+        </div>
+        <div>
+          <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1rem', color: '#fff', lineHeight: 1 }}>Messages</h1>
+          <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{myConvs.length} conversation{myConvs.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
-      <div className="container-custom py-6">
-        <motion.div 
-          className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-[calc(100vh-16rem)] flex flex-col md:flex-row"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+        <div
+          style={{ width: 320, flexShrink: 0, background: '#fff', borderRight: `1.5px solid ${t.border}`, display: 'flex', flexDirection: 'column' }}
+          className={`messages-sidebar ${selectedConvId ? 'hidden md:flex' : 'flex'}`}
         >
-        
-          {/* Sidebar List */}
-          <div className={`w-full md:w-80 lg:w-96 border-r border-gray-100 flex flex-col ${selectedConvId ? 'hidden md:flex' : 'flex'}`}>
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search conversations..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                />
-                <Search className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+          <div style={{ padding: '14px 16px', borderBottom: `1px solid ${t.border}` }}>
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: t.muted }} />
+              <input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                style={{ width: '100%', paddingLeft: 30, paddingRight: 12, paddingTop: 9, paddingBottom: 9, background: t.cream, border: `1.5px solid ${t.border}`, borderRadius: 10, fontFamily: "'Instrument Sans', sans-serif", fontSize: '0.82rem', color: t.ink, outline: 'none' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 12 }}>💬</div>
+                <p style={{ fontSize: '0.85rem', color: t.muted }}>{searchTerm ? 'No results found' : 'No conversations yet'}</p>
               </div>
-            </div>
-          
-            <div className="flex-1 overflow-y-auto">
-               {filteredConversations.length === 0 && !searchTerm ? (
-                   <div className="p-8 text-center">
-                     <div className="w-16 h-16 bg-gradient-to-br from-primary-100 to-primary-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                       <MessageCircle className="h-8 w-8 text-primary-600" />
-                     </div>
-                     <p className="text-gray-500 text-sm">No conversations yet.</p>
-                   </div>
-               ) : (
-                  filteredConversations.map(conv => {
-                      const otherId = getOtherParticipantId(conv);
-                      const otherUser = getUserDetails(otherId);
-                      const lastMsg = conv.messages[conv.messages.length - 1];
-                      const product = getProductDetails(conv.productId);
-                      const unreadCount = conv.messages.filter(m => m.senderId !== user?.id && !m.read).length;
-
-                      return (
-                          <motion.button
-                              key={conv.id}
-                              onClick={() => setSelectedConvId(conv.id)}
-                              className={`w-full p-4 flex items-start space-x-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-100 ${
-                                  selectedConvId === conv.id ? 'bg-primary-50 border-l-4 border-l-primary-500' : ''
-                              }`}
-                              whileHover={{ x: 4 }}
-                              whileTap={{ scale: 0.99 }}
-                          >
-                              <img src={otherUser.avatar} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm" />
-                              <div className="flex-1 min-w-0">
-                                  <div className="flex justify-between items-baseline mb-1">
-                                      <h3 className="text-sm font-semibold text-gray-900 truncate">{otherUser.name}</h3>
-                                      <span className="text-xs text-gray-400 whitespace-nowrap">
-                                          {new Date(conv.updatedAt).toLocaleDateString()}
-                                      </span>
-                                  </div>
-                                  {product && (
-                                      <p className="text-xs text-primary-600 font-medium mb-1 truncate">
-                                          Ref: {product.title}
-                                      </p>
-                                  )}
-                                  <p className={`text-sm truncate ${unreadCount > 0 ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
-                                      {lastMsg ? (lastMsg.senderId === user?.id ? 'You: ' : '') + lastMsg.content : 'Draft'}
-                                  </p>
-                              </div>
-                              {unreadCount > 0 && (
-                                  <div className="bg-accent-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full mt-2 shadow-sm">
-                                      {unreadCount}
-                                  </div>
-                              )}
-                          </motion.button>
-                      );
-                  })
-               )}
-            </div>
+            ) : (
+              filtered.map(conv => {
+                const otherId = getOtherId(conv);
+                const other = getUser(otherId);
+                const lastMsg = conv.messages[conv.messages.length - 1];
+                const product = getProduct(conv.productId);
+                const unread = conv.messages.filter(m => m.senderId !== user.id && !m.read).length;
+                const isSelected = selectedConvId === conv.id;
+                return (
+                  <button
+                    key={conv.id}
+                    onClick={() => setSelectedConvId(conv.id)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', border: 'none', cursor: 'pointer', textAlign: 'left', background: isSelected ? t.greenPale : 'transparent', borderLeft: `3px solid ${isSelected ? t.green : 'transparent'}`, borderBottom: `1px solid ${t.border}` }}
+                  >
+                    <Avatar name={other.name} size={42} bg={isSelected ? t.green : t.greenMid} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
+                        <span style={{ fontWeight: unread > 0 ? 700 : 600, fontSize: '0.875rem', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{other.name}</span>
+                        <span style={{ fontSize: '0.65rem', color: t.muted, flexShrink: 0, marginLeft: 6 }}>{new Date(conv.updatedAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}</span>
+                      </div>
+                      {product && <p style={{ fontSize: '0.68rem', color: t.greenMid, fontWeight: 600, marginBottom: 2, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>📦 {product.title}</p>}
+                      <p style={{ fontSize: '0.78rem', color: unread > 0 ? t.ink : t.muted, fontWeight: unread > 0 ? 600 : 400, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{lastMsg ? (lastMsg.senderId === user.id ? 'You: ' : '') + lastMsg.content : 'Start chatting…'}</p>
+                    </div>
+                    {unread > 0 && <span style={{ background: t.amber, color: t.ink, width: 20, height: 20, borderRadius: '50%', fontSize: '0.65rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: "'Syne', sans-serif" }}>{unread}</span>}
+                  </button>
+                );
+              })
+            )}
           </div>
+        </div>
 
-          {/* Chat Window */}
-          <div className={`flex-1 flex flex-col bg-gray-50 ${!selectedConvId ? 'hidden md:flex' : 'flex'}`}>
-              {activeChat ? (
-                  <>
-                      {/* Header */}
-                      <div className="bg-gradient-to-r from-primary-800 to-primary-900 p-4 flex justify-between items-center shadow-sm z-10">
-                          <div className="flex items-center">
-                              <motion.button 
-                                  onClick={() => setSelectedConvId(null)}
-                                  className="md:hidden mr-3 text-white/70 hover:text-white"
-                                  whileTap={{ scale: 0.95 }}
-                              >
-                                  <ArrowLeft className="h-6 w-6" />
-                              </motion.button>
-                              {(() => {
-                                  const otherId = (activeChat.id === 'new' && tempConversation) 
-                                    ? tempConversation.receiverId 
-                                    : (activeChat.participants?.find(p => p !== user?.id) || '');
-                                  const otherUser = getUserDetails(otherId);
-                                  const product = getProductDetails(activeChat.productId);
-                                  
-                                  return (
-                                      <div className="flex items-center">
-                                          <img src={otherUser.avatar || 'https://placehold.co/40x40/e2e8f0/1e293b?text=U'} alt="" className="w-11 h-11 rounded-full object-cover ring-2 ring-white/20" />
-                                          <div className="ml-3">
-                                              <h3 className="font-bold text-white">{otherUser.name}</h3>
-                                              {product && <p className="text-xs text-white/60">Regarding: {product.title}</p>}
-                                          </div>
-                                      </div>
-                                  );
-                              })()}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: t.cream }} className={`messages-chat ${!selectedConvId ? 'hidden md:flex' : 'flex'}`}>
+          {activeChat && activeChatOther ? (
+            <>
+              <div style={{ background: '#fff', borderBottom: `1.5px solid ${t.border}`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <button onClick={() => setSelectedConvId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.muted, display: 'flex', padding: 4 }} className="md:hidden">
+                  <ArrowLeft size={18} />
+                </button>
+                <Avatar name={activeChatOther.name} size={40} bg={t.green} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.95rem', color: t.ink }}>{activeChatOther.name}</p>
+                  {activeChatProduct && <p style={{ fontSize: '0.72rem', color: t.muted, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>About: {activeChatProduct.title}</p>}
+                </div>
+              </div>
+
+              <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <AnimatePresence initial={false}>
+                  {(activeChat.messages ?? []).map((msg: any) => {
+                    const isMe = msg.senderId === user.id;
+                    return (
+                      <motion.div key={msg.id} initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.2 }} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', gap: 8, alignItems: 'flex-end' }}>
+                        {!isMe && <Avatar name={activeChatOther.name} size={28} bg={t.greenMid} />}
+                        <div style={{ maxWidth: '72%', background: isMe ? t.green : '#fff', color: isMe ? '#fff' : t.ink, border: isMe ? 'none' : `1.5px solid ${t.border}`, borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '10px 14px' }}>
+                          <p style={{ fontSize: '0.875rem', lineHeight: 1.55 }}>{msg.content}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 }}>
+                            <span style={{ fontSize: '0.65rem', color: isMe ? 'rgba(255,255,255,0.5)' : t.muted }}>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {isMe && <Check size={10} color="rgba(255,255,255,0.5)" />}
                           </div>
-                          <button className="text-white/60 hover:text-white transition-colors">
-                              <MoreVertical className="h-5 w-5" />
-                          </button>
-                      </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
 
-                      {/* Messages Area */}
-                      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white">
-                          {(!activeChat.messages || activeChat.messages.length === 0) && (
-                              <div className="text-center py-16">
-                                <div className="w-16 h-16 bg-gradient-to-br from-primary-100 to-primary-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                                  <Send className="h-7 w-7 text-primary-600" />
-                                </div>
-                                <p className="text-gray-500 text-sm">Start the conversation by sending a message.</p>
-                              </div>
-                          )}
-                          {(activeChat.messages || []).map((msg) => {
-                              const isMe = msg.senderId === user?.id;
-                              return (
-                                  <motion.div 
-                                    key={msg.id} 
-                                    className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                  >
-                                      <div className={`max-w-[75%] rounded-2xl px-5 py-3 text-sm shadow-sm ${
-                                          isMe 
-                                          ? 'bg-gradient-to-br from-primary-700 to-primary-800 text-white rounded-br-none' 
-                                          : 'bg-white text-gray-900 border border-gray-100 rounded-bl-none'
-                                      }`}>
-                                          <p>{msg.content}</p>
-                                          <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-200' : 'text-gray-400'}`}>
-                                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                          </p>
-                                      </div>
-                                  </motion.div>
-                              );
-                          })}
-                      </div>
-
-                      {/* Input Area */}
-                      <div className="p-4 bg-white border-t border-gray-100">
-                          <form onSubmit={handleSend} className="flex items-center gap-3">
-                              <input
-                                  type="text"
-                                  value={inputText}
-                                  onChange={(e) => setInputText(e.target.value)}
-                                  placeholder="Type a message..."
-                                  className="flex-1 px-5 py-3 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all"
-                              />
-                              <motion.button 
-                                  type="submit" 
-                                  disabled={!inputText.trim()}
-                                  className="p-3.5 bg-gradient-to-br from-primary-700 to-primary-800 text-white rounded-full hover:from-primary-800 hover:to-primary-900 disabled:opacity-50 transition-all shadow-lg"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                              >
-                                  <Send className="h-5 w-5" />
-                              </motion.button>
-                          </form>
-                      </div>
-                  </>
-              ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center">
-                      <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 rounded-full flex items-center justify-center mb-4">
-                          <MessageCircle className="h-10 w-10 text-primary-600" />
-                      </div>
-                      <p className="text-gray-500 font-medium">Select a conversation to start chatting</p>
-                      <p className="text-gray-400 text-sm mt-1">Choose from your existing conversations</p>
-                  </div>
-              )}
-          </div>
-
-        </motion.div>
+              <div style={{ background: '#fff', borderTop: `1.5px solid ${t.border}`, padding: '14px 20px', flexShrink: 0 }}>
+                <form onSubmit={handleSend} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    value={inputText}
+                    onChange={e => setInputText(e.target.value)}
+                    placeholder="Type a message..."
+                    style={{ flex: 1, padding: '12px 16px', background: t.cream, border: `1.5px solid ${t.border}`, borderRadius: 12, fontFamily: "'Instrument Sans', sans-serif", fontSize: '0.875rem', color: t.ink, outline: 'none' }}
+                  />
+                  <button type="submit" disabled={!inputText.trim()} style={{ width: 44, height: 44, borderRadius: 12, border: 'none', background: inputText.trim() ? t.green : '#E5E7EB', color: inputText.trim() ? '#fff' : t.muted, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: inputText.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.2s', flexShrink: 0 }}>
+                    <Send size={16} />
+                  </button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32, opacity: 0.7 }}>
+              <div style={{ width: 72, height: 72, borderRadius: 20, background: t.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MessageCircle size={30} color={t.green} />
+              </div>
+              <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '1rem', color: t.ink }}>Select a conversation</p>
+            </div>
+          )}
+        </div>
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .messages-sidebar { width: 100% !important; }
+          .messages-chat    { width: 100% !important; }
+        }
+      `}</style>
     </div>
   );
 };

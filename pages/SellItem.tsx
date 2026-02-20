@@ -1,379 +1,435 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { Upload, DollarSign, Tag, Sparkles, Loader, X, Smartphone, AlertCircle, Store, ArrowLeft } from 'lucide-react';
+import {
+  Upload, Tag, Loader, X,
+  Smartphone, ArrowLeft, CheckCircle, DollarSign
+} from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { Product } from '../types';
-import { generateProductDescription, analyzeProductImage } from '../services/geminiService';
 import { useToast } from '../contexts/ToastContext';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
 
+/* ── Tokens ── */
+const t = {
+  green:      '#1B4332',
+  greenMid:   '#2D6A4F',
+  greenLight: '#D8F3DC',
+  greenPale:  '#F0FAF2',
+  amber:      '#F4A226',
+  cream:      '#FAF7F2',
+  ink:        '#1A1A1A',
+  muted:      '#6B7280',
+  border:     '#E8E2D9',
+};
+
+/* ── Styled input ── */
+const FormField = ({
+  label, children, hint, required = false,
+}: {
+  label: string; children: React.ReactNode; hint?: string; required?: boolean;
+}) => (
+  <div>
+    <label style={{
+      display: 'flex', alignItems: 'center', gap: 4,
+      fontFamily: "'Instrument Sans', sans-serif", fontWeight: 600,
+      fontSize: '0.82rem', color: t.ink, marginBottom: 6,
+    }}>
+      {label}
+      {required && <span style={{ color: '#DC2626' }}>*</span>}
+    </label>
+    {children}
+    {hint && <p style={{ fontSize: '0.72rem', color: t.muted, marginTop: 4 }}>{hint}</p>}
+  </div>
+);
+
+const inputStyle = (focused: boolean): React.CSSProperties => ({
+  width: '100%',
+  padding: '11px 14px',
+  border: `1.5px solid ${focused ? t.greenMid : t.border}`,
+  borderRadius: 10,
+  background: focused ? '#fff' : t.cream,
+  fontFamily: "'Instrument Sans', sans-serif",
+  fontSize: '0.875rem', color: t.ink,
+  outline: 'none',
+  transition: 'all 0.2s',
+  boxShadow: focused ? `0 0 0 3px ${t.greenLight}` : 'none',
+});
+
+/* ── Single input wrapper with focus state ── */
+const FInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      {...props}
+      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+      style={{ ...inputStyle(focused), ...(props.style ?? {}) }}
+    />
+  );
+};
+
+const FSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <select
+      {...props}
+      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+      style={{ ...inputStyle(focused), appearance: 'none', cursor: 'pointer', ...(props.style ?? {}) }}
+    />
+  );
+};
+
+const FTextarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <textarea
+      {...props}
+      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+      style={{ ...inputStyle(focused), resize: 'vertical', minHeight: 120, ...(props.style ?? {}) }}
+    />
+  );
+};
+
+/* ════════════════════════
+   SELL ITEM
+════════════════════════ */
 const SellItem = () => {
   const { user, addProduct } = useStore();
   const { addToast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [title, setTitle] = useState('');
-  const [price, setPrice] = useState('');
-  const [category, setCategory] = useState('Textbooks');
-  const [condition, setCondition] = useState<Product['condition']>('Used - Good');
-  const [phone, setPhone] = useState('');
+  const [title,       setTitle]       = useState('');
+  const [price,       setPrice]       = useState('');
+  const [category,    setCategory]    = useState('Textbooks');
+  const [condition,   setCondition]   = useState<Product['condition']>('Good');
+  const [phone,       setPhone]       = useState('');
   const [description, setDescription] = useState('');
-  const [image, setImage] = useState<string | null>(null);
-  
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [image,       setImage]       = useState<string | null>(null);
+
+  const [isSubmitting,  setIsSubmitting]  = useState(false);
+  const [submitted,     setSubmitted]     = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login', { state: { from: '/sell', message: 'Sign in to sell items' } });
-    }
+    if (!user) navigate('/login', { state: { from: '/sell', message: 'Sign in to sell items' } });
   }, [user, navigate]);
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
+  /* ── Handlers ── */
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        addToast('File size must be less than 5MB', 'error');
-        return;
-      }
-      
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { addToast('Max file size is 5MB', 'error'); return; }
+    const reader = new FileReader();
+    reader.onloadend = () => setImage(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file?.type.startsWith('image/')) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
+      reader.onloadend = () => setImage(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAiGenerate = async () => {
-    if (!title) {
-      addToast('Please enter a product title first', 'error');
-      return;
-    }
-    setIsGenerating(true);
-    const desc = await generateProductDescription(title, `${category} (${condition})`);
-    setDescription(desc);
-    setIsGenerating(false);
-    addToast('Description generated!', 'success');
-  };
-
-  const handleImageAnalysis = async () => {
-    if (!image) return;
-    setIsAnalyzing(true);
-    const data = await analyzeProductImage(image);
-    
-    if (data) {
-        if (data.title) setTitle(data.title);
-        if (data.description) setDescription(data.description);
-        if (data.category) setCategory(data.category);
-        if (data.condition) setCondition(data.condition as any);
-        addToast('Product details auto-filled from image!', 'success');
-    } else {
-        addToast('Could not analyze image. Please try again.', 'error');
-    }
-    setIsAnalyzing(false);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation
-    if (!title || !price || !description || !phone) {
-      addToast('Please fill in all required fields', 'error');
-      return;
-    }
-
-    if (parseFloat(price) <= 0) {
-      addToast('Price must be greater than 0', 'error');
-      return;
-    }
-
-    if (!image) {
-      addToast('Please upload at least one image', 'error');
-      return;
-    }
+    if (!title || !price || !description || !phone) { addToast('Please fill all required fields', 'error'); return; }
+    if (parseFloat(price) <= 0) { addToast('Price must be greater than 0', 'error'); return; }
+    if (!image) { addToast('Please upload a product image', 'error'); return; }
 
     setIsSubmitting(true);
-
-    // Simulate network delay
     setTimeout(() => {
-      const newProduct: Product = {
+      addProduct({
         id: `p-${Date.now()}`,
         title,
         description,
         price: parseFloat(price),
         category,
-        image,
-        rating: 0,
-        stock: 1, // Default for individual sellers
-        sellerId: user.id,
+        images: image ? [image] : [],
+        seller: user,
         condition,
-        contactPhone: phone,
-        status: 'pending'
-      };
-
-      addProduct(newProduct);
+        inStock: true,
+        ratings: 0,
+        reviews: [],
+        createdAt: new Date().toISOString(),
+      });
       setIsSubmitting(false);
-      navigate('/shop');
+      setSubmitted(true);
+      setTimeout(() => navigate('/shop'), 2000);
     }, 1500);
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Page Header */}
-      <section className="bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 py-8 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 right-0 w-72 h-72 bg-accent-500/20 rounded-full blur-3xl"></div>
-        </div>
-        <div className="container-custom relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Link to="/shop" className="inline-flex items-center text-primary-200 hover:text-white mb-4 transition-colors">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Shop
-            </Link>
-            <div className="flex items-center gap-4">
-              <Badge variant="outline" className="border-white/30 text-white">
-                <Store className="h-3.5 w-3.5 mr-1" />
-                Sell on Campus
-              </Badge>
-              <h1 className="text-2xl md:text-3xl font-bold text-white">List an Item</h1>
-            </div>
-            <p className="text-primary-100 mt-2">Reach thousands of students on campus instantly.</p>
-          </motion.div>
-        </div>
-      </section>
-
-      <div className="container-custom py-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+  /* ── Success state ── */
+  if (submitted) {
+    return (
+      <div style={{ minHeight: '100vh', background: t.cream, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          style={{ textAlign: 'center', maxWidth: 380 }}
         >
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-0 lg:divide-x divide-gray-100">
-          
-          {/* Left Column: Image Upload */}
-          <div className="p-8 lg:col-span-1 bg-gradient-to-br from-gray-50 to-white">
-            <label className="block text-sm font-semibold text-gray-900 mb-4">Product Image</label>
-            
-            <motion.div 
-              whileHover={{ scale: image ? 1 : 1.02 }}
-              className={`relative border-2 border-dashed rounded-2xl p-4 text-center h-64 flex flex-col items-center justify-center transition-all ${
-                image ? 'border-primary-300 bg-primary-50' : 'border-gray-300 hover:border-primary-400 hover:bg-white'
-              }`}
-            >
-              {image ? (
-                <>
-                  <img src={image} alt="Preview" className="w-full h-full object-contain rounded-xl" />
-                  <motion.button 
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    type="button"
-                    onClick={() => setImage(null)}
-                    className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </motion.button>
-                </>
-              ) : (
-                <div 
-                  onClick={() => fileInputRef.current?.click()} 
-                  className="cursor-pointer w-full h-full flex flex-col items-center justify-center"
-                >
-                  <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
-                    <Upload className="h-6 w-6 text-white" />
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900">Click to upload</p>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG (Max 5MB)</p>
-                </div>
-              )}
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                accept="image/*" 
-                className="hidden" 
-                onChange={handleImageUpload}
-              />
-            </motion.div>
+          <motion.div
+            initial={{ scale: 0 }} animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', bounce: 0.5 }}
+            style={{
+              width: 80, height: 80, borderRadius: '50%',
+              background: t.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 20px',
+            }}
+          >
+            <CheckCircle size={38} color={t.green} />
+          </motion.div>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.5rem', color: t.ink, marginBottom: 8 }}>
+            Item Listed! 🎉
+          </h2>
+          <p style={{ color: t.muted, fontSize: '0.875rem', lineHeight: 1.7 }}>
+            Your listing is now live. Redirecting to shop…
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
-            {image && (
-              <motion.button
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                type="button"
-                onClick={handleImageAnalysis}
-                disabled={isAnalyzing}
-                className="mt-4 w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all font-semibold text-sm shadow-lg shadow-purple-200 disabled:opacity-70 disabled:cursor-not-allowed"
+  const tips = [
+    { emoji: '📸', text: 'Clear photos sell 3× faster than blurry ones' },
+    { emoji: '💰', text: 'Price 20–30% below retail to move quickly' },
+    { emoji: '✍️', text: 'Honest condition descriptions build trust' },
+  ];
+
+  return (
+    <div style={{ background: t.cream, minHeight: '100vh', fontFamily: "'Instrument Sans', sans-serif" }}>
+
+      {/* ── Header ── */}
+      <div style={{ background: t.green, padding: '36px 24px 52px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 80px)` }} />
+        <div style={{ position: 'absolute', right: -40, top: -40, width: 300, height: 300, background: `radial-gradient(circle, rgba(244,162,38,0.15) 0%, transparent 70%)`, borderRadius: '50%' }} />
+        <div style={{ maxWidth: 960, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <Link to="/shop" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none', marginBottom: 16 }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
+          >
+            <ArrowLeft size={14} /> Back to Shop
+          </Link>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(244,162,38,0.15)', color: t.amber, border: '1px solid rgba(244,162,38,0.3)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 999, padding: '4px 12px', marginBottom: 12 }}>
+            🏪 Free to List
+          </span>
+          <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', color: '#fff', lineHeight: 1.1, marginBottom: 6 }}>
+            List an Item
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem' }}>
+            Reach 2,500+ verified Babcock students instantly
+          </p>
+        </div>
+        <div style={{ position: 'absolute', bottom: -1, left: 0, right: 0, lineHeight: 0 }}>
+          <svg viewBox="0 0 1440 40" preserveAspectRatio="none" style={{ display: 'block', width: '100%', height: 40 }}>
+            <path d="M0,40 C400,10 1040,38 1440,18 L1440,40 Z" fill={t.cream} />
+          </svg>
+        </div>
+      </div>
+
+      {/* ── Form ── */}
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 24px 80px' }}>
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 24, alignItems: 'start' }} className="sell-grid">
+
+            {/* ── Left: Image upload ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div
+                onClick={() => !image && fileInputRef.current?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={handleDrop}
+                style={{
+                  background: '#fff', border: `2px dashed ${image ? t.greenMid : t.border}`,
+                  borderRadius: 18, overflow: 'hidden',
+                  aspectRatio: '1', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  cursor: image ? 'default' : 'pointer',
+                  position: 'relative', transition: 'border-color 0.2s',
+                }}
+                onMouseEnter={e => { if (!image) e.currentTarget.style.borderColor = t.greenMid; }}
+                onMouseLeave={e => { if (!image) e.currentTarget.style.borderColor = t.border; }}
               >
-                {isAnalyzing ? <Loader className="animate-spin h-4 w-4 mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                {isAnalyzing ? 'Analyzing Image...' : 'Auto-fill with AI'}
-              </motion.button>
-            )}
-            
-            <div className="mt-6 bg-primary-50 p-4 rounded-xl flex items-start border border-primary-100">
-              <AlertCircle className="h-5 w-5 text-primary-600 mt-0.5 flex-shrink-0" />
-              <p className="ml-3 text-xs text-primary-800 leading-relaxed">
-                Take clear photos in good lighting. Items with real photos sell 3x faster than those with stock images.
-              </p>
-            </div>
-          </div>
-
-          {/* Right Column: Form Fields */}
-          <div className="p-8 lg:col-span-2 space-y-6">
-            
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">Product Title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Calculus Textbook, Electric Kettle"
-                className="w-full rounded-xl border-gray-200 focus:ring-primary-500 focus:border-primary-500 shadow-sm px-4 py-3 border transition-all"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Price */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Price (₦)</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <DollarSign className="h-4 w-4 text-gray-400" />
+                {image ? (
+                  <>
+                    <img src={image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 8 }} />
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setImage(null); }}
+                      style={{
+                        position: 'absolute', top: 10, right: 10,
+                        width: 28, height: 28, borderRadius: '50%',
+                        background: '#DC2626', color: '#fff', border: 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                      }}
+                    >
+                      <X size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: 24 }}>
+                    <div style={{
+                      width: 52, height: 52, borderRadius: 14,
+                      background: t.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      margin: '0 auto 12px',
+                    }}>
+                      <Upload size={22} color={t.green} />
+                    </div>
+                    <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.9rem', color: t.ink, marginBottom: 4 }}>
+                      Upload Photo
+                    </p>
+                    <p style={{ fontSize: '0.72rem', color: t.muted, lineHeight: 1.6 }}>
+                      Drag & drop or click<br />Max 5MB · JPG, PNG, WEBP
+                    </p>
                   </div>
-                  <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full pl-10 rounded-xl border-gray-200 focus:ring-primary-500 focus:border-primary-500 px-4 py-3 border transition-all"
-                    required
+                )}
+              </div>
+
+              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+
+              {/* Tips card */}
+              <div style={{
+                background: t.greenPale, border: `1px solid ${t.greenLight}`,
+                borderRadius: 14, padding: '14px 16px',
+              }}>
+                <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.75rem', color: t.green, marginBottom: 10, letterSpacing: '0.05em' }}>
+                  💡 Tips for a fast sale
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {tips.map(tip => (
+                    <div key={tip.text} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '0.85rem', flexShrink: 0, marginTop: 1 }}>{tip.emoji}</span>
+                      <p style={{ fontSize: '0.75rem', color: t.greenMid, lineHeight: 1.5 }}>{tip.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Right: Form fields ── */}
+            <div style={{
+              background: '#fff', border: `1.5px solid ${t.border}`,
+              borderRadius: 20, padding: '28px 28px',
+              display: 'flex', flexDirection: 'column', gap: 20,
+            }}>
+
+              <FormField label="Product Title" required>
+                <FInput
+                  type="text" value={title} onChange={e => setTitle(e.target.value)}
+                  placeholder="e.g. Calculus Textbook 4th Edition, Electric Kettle"
+                  required
+                />
+              </FormField>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <FormField label="Price (₦)" required>
+                  <div style={{ position: 'relative' }}>
+                    <DollarSign size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.muted }} />
+                    <FInput
+                      type="number" value={price} onChange={e => setPrice(e.target.value)}
+                      placeholder="0" min="0" required
+                      style={{ paddingLeft: 32 } as any}
+                    />
+                  </div>
+                </FormField>
+
+                <FormField label="Category" required>
+                  <div style={{ position: 'relative' }}>
+                    <Tag size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.muted, zIndex: 1 }} />
+                    <FSelect value={category} onChange={e => setCategory(e.target.value)} style={{ paddingLeft: 32 } as any}>
+                      {['Textbooks','Electronics','Clothing','Food','Hostel','Services','Stationery','Tech'].map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </FSelect>
+                  </div>
+                </FormField>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <FormField label="Condition" required>
+                  <FSelect value={condition as string} onChange={e => setCondition(e.target.value as any)}>
+                    <option value="New">New (Unopened)</option>
+                    <option value="Like New">Like New</option>
+                    <option value="Good">Used – Good</option>
+                    <option value="Fair">Used – Fair</option>
+                  </FSelect>
+                </FormField>
+
+                <FormField label="WhatsApp / Phone" required hint="Buyers will contact you here">
+                  <div style={{ position: 'relative' }}>
+                    <Smartphone size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.muted }} />
+                    <FInput
+                      type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                      placeholder="0801 234 5678" required
+                      style={{ paddingLeft: 32 } as any}
+                    />
+                  </div>
+                </FormField>
+              </div>
+
+              <FormField label="Description" required hint="Mention size, defects, reason for selling — honesty closes deals faster">
+                <div>
+                  <FTextarea
+                    value={description} onChange={e => setDescription(e.target.value)}
+                    placeholder="Describe what you're selling. Be specific — good descriptions get faster responses."
+                    rows={5} required
                   />
                 </div>
-              </div>
+              </FormField>
 
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Category</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Tag className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full pl-10 rounded-xl border-gray-200 focus:ring-primary-500 focus:border-primary-500 px-4 py-3 border bg-white transition-all"
-                  >
-                    <option value="Textbooks">Textbooks</option>
-                    <option value="Electronics">Electronics</option>
-                    <option value="Clothing">Clothing</option>
-                    <option value="Food">Food & Snacks</option>
-                    <option value="Furniture">Furniture</option>
-                    <option value="Services">Services</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+              {/* Divider */}
+              <div style={{ borderTop: `1px solid ${t.border}` }} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Condition */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Condition</label>
-                <select
-                  value={condition}
-                  onChange={(e) => setCondition(e.target.value as Product['condition'])}
-                  className="w-full rounded-xl border-gray-200 focus:ring-primary-500 focus:border-primary-500 px-4 py-3 border bg-white transition-all"
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                <button
+                  type="button" onClick={() => navigate(-1)} disabled={isSubmitting}
+                  style={{
+                    padding: '12px 24px', borderRadius: 12,
+                    border: `1.5px solid ${t.border}`, background: 'none',
+                    fontFamily: "'Instrument Sans', sans-serif", fontWeight: 600,
+                    fontSize: '0.875rem', color: t.muted, cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#DC2626'; e.currentTarget.style.color = '#DC2626'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.muted; }}
                 >
-                  <option value="New">New (Unopened)</option>
-                  <option value="Like New">Like New (Used once/twice)</option>
-                  <option value="Used - Good">Used - Good</option>
-                  <option value="Used - Fair">Used - Fair</option>
-                </select>
-              </div>
-
-              {/* Phone */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">WhatsApp / Phone</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Smartphone className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="0801 234 5678"
-                    className="w-full pl-10 rounded-xl border-gray-200 focus:ring-primary-500 focus:border-primary-500 px-4 py-3 border transition-all"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-semibold text-gray-900">Description</label>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  type="button"
-                  onClick={handleAiGenerate}
-                  disabled={isGenerating || !title}
-                  className="text-xs flex items-center text-purple-600 hover:text-purple-700 font-semibold disabled:opacity-50 transition-colors px-3 py-1.5 bg-purple-50 rounded-full"
+                  Cancel
+                </button>
+                <button
+                  type="submit" disabled={isSubmitting}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    background: isSubmitting ? t.greenMid : t.green,
+                    color: '#fff', border: 'none', borderRadius: 12,
+                    padding: '12px 28px', fontFamily: "'Syne', sans-serif",
+                    fontWeight: 700, fontSize: '0.9rem',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 16px rgba(27,67,50,0.25)',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => { if (!isSubmitting) e.currentTarget.style.background = t.greenMid; }}
+                  onMouseLeave={e => { if (!isSubmitting) e.currentTarget.style.background = t.green; }}
                 >
-                  {isGenerating ? <Loader className="animate-spin h-3 w-3 mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
-                  {isGenerating ? 'Writing...' : 'Enhance with AI'}
-                </motion.button>
+                  {isSubmitting && <Loader size={15} style={{ animation: 'spin 1s linear infinite' }} />}
+                  {isSubmitting ? 'Posting…' : 'Post Listing 🚀'}
+                </button>
               </div>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={5}
-                placeholder="Describe specific details, defects, or reasons for selling..."
-                className="w-full rounded-xl border-gray-200 focus:ring-primary-500 focus:border-primary-500 shadow-sm px-4 py-3 border resize-none transition-all"
-                required
-              />
-            </div>
-
-            {/* Action Buttons */}
-            <div className="pt-6 flex items-center justify-end space-x-4 border-t border-gray-100">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate(-1)}
-                className="px-6 py-5 rounded-xl"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                type="submit"
-                disabled={isSubmitting}
-                className="px-8 py-3 bg-gradient-to-r from-primary-800 to-primary-900 rounded-xl text-sm font-semibold text-white hover:shadow-xl shadow-lg shadow-primary-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center transition-all"
-              >
-                {isSubmitting && <Loader className="animate-spin h-4 w-4 mr-2" />}
-                {isSubmitting ? 'Listing Item...' : 'Post Listing'}
-              </motion.button>
             </div>
           </div>
         </form>
-        </motion.div>
       </div>
+
+      <style>{`
+        @media (max-width: 768px) { .sell-grid { grid-template-columns: 1fr !important; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 };

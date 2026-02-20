@@ -1,399 +1,427 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  GraduationCap, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff,
-  ArrowRight,
-  User,
-  Phone,
-  BookOpen,
-  Users,
-  Shield,
-  Sparkles,
-  CheckCircle
-} from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, User, Phone } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/badge';
 
+/* ── Tokens ── */
+const t = {
+  green:      '#1B4332',
+  greenMid:   '#2D6A4F',
+  greenLight: '#D8F3DC',
+  greenPale:  '#F0FAF2',
+  amber:      '#F4A226',
+  cream:      '#FAF7F2',
+  ink:        '#1A1A1A',
+  muted:      '#6B7280',
+  border:     '#E8E2D9',
+  error:      '#DC2626',
+  errorBg:    '#FEF2F2',
+};
+
+/* ── Field component ── */
+const Field = ({
+  label, type = 'text', value, onChange, placeholder, icon: Icon,
+  rightEl, hint, required = false,
+}: {
+  label: string; type?: string; value: string;
+  onChange: (v: string) => void; placeholder: string;
+  icon: React.ElementType; rightEl?: React.ReactNode;
+  hint?: string; required?: boolean;
+}) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div>
+      <label style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        fontSize: '0.82rem', fontWeight: 600, color: t.ink, marginBottom: 6,
+        fontFamily: "'Instrument Sans', sans-serif",
+      }}>
+        {label}
+        {!required && <span style={{ fontSize: '0.7rem', color: t.muted, fontWeight: 400 }}>(optional)</span>}
+      </label>
+      <div style={{
+        position: 'relative',
+        border: `1.5px solid ${focused ? t.greenMid : t.border}`,
+        borderRadius: 12, background: focused ? '#fff' : t.cream,
+        transition: 'all 0.2s', boxShadow: focused ? `0 0 0 3px ${t.greenLight}` : 'none',
+      }}>
+        <Icon size={16} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: focused ? t.greenMid : t.muted }} />
+        <input
+          type={type} value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            width: '100%', padding: '12px 40px 12px 38px',
+            background: 'transparent', border: 'none', outline: 'none',
+            fontFamily: "'Instrument Sans', sans-serif", fontSize: '0.9rem', color: t.ink,
+          }}
+        />
+        {rightEl && (
+          <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+            {rightEl}
+          </div>
+        )}
+      </div>
+      {hint && <p style={{ fontSize: '0.72rem', color: t.muted, marginTop: 4 }}>{hint}</p>}
+    </div>
+  );
+};
+
+/* ── Password strength indicator ── */
+const PasswordStrength = ({ password }: { password: string }) => {
+  const checks = [
+    { label: '8+ characters', pass: password.length >= 8 },
+    { label: 'Uppercase letter', pass: /[A-Z]/.test(password) },
+    { label: 'Number', pass: /\d/.test(password) },
+  ];
+  if (!password) return null;
+  return (
+    <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+      {checks.map(c => (
+        <span key={c.label} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          fontSize: '0.68rem', fontWeight: 600,
+          color: c.pass ? t.greenMid : t.muted,
+        }}>
+          <span style={{ fontSize: '0.75rem' }}>{c.pass ? '✓' : '○'}</span>
+          {c.label}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+/* ════════════════════════
+   REGISTER
+════════════════════════ */
 const Register = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
-  
-  const { login } = useStore();
-  const navigate = useNavigate();
+  const [name, setName]             = useState('');
+  const [email, setEmail]           = useState('');
+  const [phone, setPhone]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [confirmPw, setConfirmPw]   = useState('');
+  const [showPw, setShowPw]         = useState(false);
+  const [agreed, setAgreed]         = useState(false);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState('');
+
+  const { register } = useStore();
+  const navigate  = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!name || !email || !password) {
-      setError('Please fill in all required fields');
-      return;
-    }
+    if (!name.trim())                           return setError('Please enter your full name.');
+    if (!email.includes('@babcock.edu.ng'))     return setError('Please use your @babcock.edu.ng email address.');
+    if (password.length < 6)                   return setError('Password must be at least 6 characters.');
+    if (password !== confirmPw)                return setError('Passwords do not match.');
+    if (!agreed)                               return setError('Please accept the terms to continue.');
 
-    if (!email.includes('@babcock.edu.ng')) {
-      setError('Please use your Babcock University email (@babcock.edu.ng)');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (!agreeToTerms) {
-      setError('Please agree to the terms and conditions');
-      return;
-    }
-
-    setIsLoading(true);
-
+    setLoading(true);
     try {
-      // Use login which will register if user doesn't exist
-      await login(email);
+      await register(name, email, password, phone);
       navigate('/', { replace: true });
-    } catch (err) {
+    } catch {
       setError('Registration failed. Please try again.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const benefits = [
-    'Buy textbooks at half the price',
-    'Sell items to 2,500+ students',
-    'Safe campus-only transactions',
-    'AI-powered product suggestions'
+    { emoji: '📚', text: 'Buy textbooks at half the bookshop price' },
+    { emoji: '💰', text: 'Sell items to 2,500+ active students' },
+    { emoji: '🔒', text: 'Verified campus-only community' },
+    { emoji: '⚡', text: 'Fast product discovery and secure checkout' },
+  ];
+
+  const steps = [
+    { num: '01', title: 'Create account', desc: 'Takes under 2 minutes' },
+    { num: '02', title: 'Verify email',   desc: 'Babcock address required' },
+    { num: '03', title: 'Start trading',  desc: 'Buy or list immediately' },
   ];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex">
-      {/* Left Panel - Register Form */}
-      <motion.div 
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full lg:w-1/2 flex items-center justify-center p-8 overflow-y-auto"
+    <div style={{ display: 'flex', minHeight: 'calc(100vh - 4rem)', fontFamily: "'Instrument Sans', sans-serif" }}>
+
+      {/* ════ LEFT — Illustration panel ════ */}
+      <motion.div
+        initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        style={{
+          width: '48%', background: t.green,
+          position: 'relative', overflow: 'hidden',
+          display: 'none', flexDirection: 'column',
+          justifyContent: 'center', padding: '64px 48px',
+        }}
+        className="lg:flex"
       >
-        <div className="w-full max-w-md py-8">
-          {/* Logo */}
+        {/* Texture + glows */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 80px)`,
+        }} />
+        <div style={{
+          position: 'absolute', top: '-5%', left: '-5%', width: 400, height: 400,
+          background: `radial-gradient(circle, rgba(244,162,38,0.15) 0%, transparent 70%)`,
+          borderRadius: '50%',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '-10%', right: '-5%', width: 320, height: 320,
+          background: `radial-gradient(circle, rgba(45,106,79,0.6) 0%, transparent 70%)`,
+          borderRadius: '50%',
+        }} />
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+
+          {/* Eyebrow */}
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            className="flex items-center justify-center mb-6"
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'rgba(244,162,38,0.15)', color: t.amber,
+              border: '1px solid rgba(244,162,38,0.3)',
+              fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase', borderRadius: 999, padding: '5px 14px', marginBottom: 28,
+            }}
           >
-            <div className="bg-primary-800 p-3 rounded-xl">
-              <GraduationCap className="h-8 w-8 text-white" />
-            </div>
-            <span className="ml-3 text-2xl font-bold">
-              <span className="text-primary-800">Babcock</span>
-              <span className="text-gray-900">Market</span>
-            </span>
+            ✦ Join 2,500+ Students
           </motion.div>
 
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-center mb-6"
-          >
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-            <p className="text-gray-600">
-              Join the Babcock student marketplace
-            </p>
-          </motion.div>
-
-          {/* Form */}
-          <motion.form
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            onSubmit={handleSubmit}
-            className="space-y-4"
-          >
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="p-3 bg-red-50 text-red-600 rounded-lg text-sm"
-              >
-                {error}
-              </motion.div>
-            )}
-
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Babcock Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@babcock.edu.ng"
-                  className="pl-10"
-                  required
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Must be your @babcock.edu.ng email</p>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number (Optional)
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="0801 234 5678"
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-10"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Terms */}
-            <div className="flex items-start">
-              <input 
-                type="checkbox" 
-                checked={agreeToTerms}
-                onChange={(e) => setAgreeToTerms(e.target.checked)}
-                className="mt-1 rounded border-gray-300 text-primary-800 focus:ring-primary-500" 
-              />
-              <span className="ml-2 text-sm text-gray-600">
-                I agree to the{' '}
-                <a href="#" className="text-primary-800 hover:underline">Terms of Service</a>
-                {' '}and{' '}
-                <a href="#" className="text-primary-800 hover:underline">Privacy Policy</a>
-              </span>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-primary-800 hover:bg-primary-900 text-white py-6 text-lg"
-            >
-              {isLoading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-6 h-6 border-2 border-white border-t-transparent rounded-full"
-                />
-              ) : (
-                <>
-                  Create Account
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </>
-              )}
-            </Button>
-          </motion.form>
-
-          {/* Sign In Link */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-center text-sm text-gray-600 mt-6"
-          >
-            Already have an account?{' '}
-            <Link to="/login" className="text-primary-800 font-medium hover:text-primary-900">
-              Sign in
-            </Link>
-          </motion.p>
-        </div>
-      </motion.div>
-
-      {/* Right Panel - Hero Section */}
-      <motion.div 
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5 }}
-        className="hidden lg:block w-1/2 bg-gradient-to-br from-primary-900 to-primary-800 relative overflow-hidden"
-      >
-        {/* Animated background patterns */}
-        <motion.div
-          animate={{ 
-            scale: [1, 1.2, 1],
-            rotate: [0, 90, 0],
-          }}
-          transition={{ duration: 20, repeat: Infinity }}
-          className="absolute -right-20 -top-20 w-96 h-96 bg-white/5 rounded-full"
-        />
-        <motion.div
-          animate={{ 
-            scale: [1, 1.3, 1],
-            rotate: [0, -90, 0],
-          }}
-          transition={{ duration: 25, repeat: Infinity }}
-          className="absolute -left-20 -bottom-20 w-96 h-96 bg-accent-500/10 rounded-full"
-        />
-
-        <div className="relative h-full flex flex-col items-center justify-center p-12 text-white">
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Badge variant="outline" className="border-white/30 text-white mb-8 px-4 py-2">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Join 2,500+ Students
-            </Badge>
-          </motion.div>
-
-          {/* Main heading */}
+          {/* Headline */}
           <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-4xl font-bold text-center mb-4 leading-tight"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              fontFamily: "'Syne', sans-serif", fontWeight: 800,
+              fontSize: 'clamp(1.8rem, 2.8vw, 2.5rem)', color: '#fff',
+              lineHeight: 1.12, marginBottom: 12,
+            }}
           >
-            Start Trading
-            <span className="block text-accent-400">On Campus Today</span>
+            Start trading<br />
+            <span style={{ color: t.amber }}>on campus today.</span>
           </motion.h2>
 
-          {/* Benefits List */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="mt-8 space-y-4 w-full max-w-md"
+          <motion.p
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+            style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', lineHeight: 1.7, marginBottom: 36, maxWidth: '36ch' }}
           >
-            {benefits.map((benefit, index) => (
+            The only marketplace built for Babcock students — safe, fast, and free to use.
+          </motion.p>
+
+          {/* Benefits list */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 44 }}
+          >
+            {benefits.map((b, i) => (
               <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 + index * 0.1 }}
-                className="flex items-center gap-3 bg-white/10 rounded-lg p-4 backdrop-blur-sm"
+                key={i}
+                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.6 + i * 0.07 }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 12, padding: '12px 16px', backdropFilter: 'blur(8px)',
+                }}
               >
-                <CheckCircle className="h-5 w-5 text-accent-400 flex-shrink-0" />
-                <span className="text-sm font-medium">{benefit}</span>
+                <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{b.emoji}</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>{b.text}</span>
               </motion.div>
             ))}
           </motion.div>
 
-          {/* Stats */}
+          {/* How it works */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="grid grid-cols-2 gap-4 mt-8 w-full max-w-md"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
           >
-            {[
-              { icon: Users, text: '2,500+ Students', color: 'bg-blue-500/20' },
-              { icon: BookOpen, text: '1,800+ Items', color: 'bg-green-500/20' },
-            ].map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <motion.div
-                  key={index}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  className={`${feature.color} rounded-lg p-4 text-center backdrop-blur-sm`}
-                >
-                  <Icon className="h-6 w-6 mx-auto mb-2 text-white" />
-                  <p className="text-sm font-medium">{feature.text}</p>
-                </motion.div>
-              );
-            })}
+            <p style={{
+              fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: 16,
+            }}>How it works</p>
+            <div style={{ display: 'flex', gap: 0 }}>
+              {steps.map((step, i) => (
+                <div key={i} style={{ flex: 1, position: 'relative' }}>
+                  {i < steps.length - 1 && (
+                    <div style={{
+                      position: 'absolute', top: 14, left: '60%', right: 0,
+                      height: 1, background: 'rgba(255,255,255,0.12)',
+                    }} />
+                  )}
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{
+                      fontFamily: "'Syne', sans-serif", fontWeight: 800,
+                      fontSize: '0.75rem', color: t.amber,
+                    }}>{step.num}</span>
+                  </div>
+                  <p style={{ fontWeight: 600, fontSize: '0.8rem', color: '#fff', marginBottom: 3 }}>{step.title}</p>
+                  <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{step.desc}</p>
+                </div>
+              ))}
+            </div>
           </motion.div>
+        </div>
+      </motion.div>
 
-          {/* Security badge */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="mt-8 flex items-center text-sm text-white/70"
-          >
-            <Shield className="h-4 w-4 mr-2" />
-            Campus-verified accounts only
-          </motion.div>
+      {/* ════ RIGHT — Form panel ════ */}
+      <motion.div
+        initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        style={{
+          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '40px 32px', background: '#fff', overflowY: 'auto',
+        }}
+      >
+        <div style={{ width: '100%', maxWidth: 420 }}>
+
+          {/* Logo */}
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', marginBottom: 28 }}>
+            <div style={{ background: t.green, width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg viewBox="0 0 24 24" style={{ width: 20, height: 20, fill: '#fff' }}>
+                <path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm-7 10.18V16l7 3.82 7-3.82v-2.82L12 17l-7-3.82z"/>
+              </svg>
+            </div>
+            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.1rem' }}>
+              <span style={{ color: t.green }}>Babcock</span>
+              <span style={{ color: t.ink }}> Market</span>
+            </span>
+          </Link>
+
+          {/* Heading */}
+          <div style={{ marginBottom: 24 }}>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.9rem', color: t.ink, marginBottom: 6, lineHeight: 1.15 }}>
+              Create your account 🎉
+            </h1>
+            <p style={{ fontSize: '0.88rem', color: t.muted }}>
+              Babcock email required — takes 2 minutes
+            </p>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+              style={{
+                background: t.errorBg, border: `1px solid #FECACA`,
+                borderRadius: 10, padding: '10px 14px',
+                fontSize: '0.82rem', color: t.error, marginBottom: 18,
+              }}
+            >
+              ✕ {error}
+            </motion.div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            <Field
+              label="Full Name" value={name} onChange={setName}
+              placeholder="Chukwuemeka Obi" icon={User} required
+            />
+
+            <Field
+              label="Babcock Email" type="email" value={email} onChange={setEmail}
+              placeholder="you@babcock.edu.ng" icon={Mail}
+              hint="Must end with @babcock.edu.ng" required
+            />
+
+            <Field
+              label="Phone Number" type="tel" value={phone} onChange={setPhone}
+              placeholder="0801 234 5678" icon={Phone}
+            />
+
+            <div>
+              <Field
+                label="Password" type={showPw ? 'text' : 'password'}
+                value={password} onChange={setPassword}
+                placeholder="Min. 6 characters" icon={Lock}
+                rightEl={
+                  <button type="button" onClick={() => setShowPw(v => !v)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.muted, padding: 0, display: 'flex' }}
+                  >
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                }
+                required
+              />
+              <PasswordStrength password={password} />
+            </div>
+
+            <Field
+              label="Confirm Password" type={showPw ? 'text' : 'password'}
+              value={confirmPw} onChange={setConfirmPw}
+              placeholder="Repeat password" icon={Lock}
+              rightEl={
+                confirmPw.length > 0 ? (
+                  <span style={{ fontSize: '0.75rem', color: confirmPw === password ? t.greenMid : t.error }}>
+                    {confirmPw === password ? '✓ Match' : '✗ No match'}
+                  </span>
+                ) : undefined
+              }
+              required
+            />
+
+            {/* Terms */}
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox" checked={agreed}
+                onChange={e => setAgreed(e.target.checked)}
+                style={{ accentColor: t.green, width: 15, height: 15, marginTop: 2, flexShrink: 0, cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '0.8rem', color: t.muted, lineHeight: 1.6 }}>
+                I agree to the{' '}
+                <Link to="/terms" style={{ color: t.green, fontWeight: 600, textDecoration: 'none' }}>Terms of Service</Link>
+                {' '}and{' '}
+                <Link to="/privacy" style={{ color: t.green, fontWeight: 600, textDecoration: 'none' }}>Privacy Policy</Link>
+              </span>
+            </label>
+
+            {/* Submit */}
+            <button
+              type="submit" disabled={loading}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                background: loading ? t.greenMid : t.green, color: '#fff',
+                border: 'none', borderRadius: 12, padding: '14px',
+                fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.95rem',
+                cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                boxShadow: '0 4px 16px rgba(27,67,50,0.25)',
+                marginTop: 4,
+              }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = t.greenMid; }}
+              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = t.green; }}
+            >
+              {loading ? (
+                <motion.div
+                  animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                  style={{ width: 18, height: 18, border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%' }}
+                />
+              ) : (
+                <> Create Account <ArrowRight size={16} /> </>
+              )}
+            </button>
+          </form>
+
+          {/* Features row */}
+          <div style={{ display: 'flex', gap: 12, marginTop: 20, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {['🔒 Secure', '🎓 Verified only', '⚡ Free forever'].map(f => (
+              <span key={f} style={{
+                fontSize: '0.72rem', color: t.muted, fontWeight: 500,
+                display: 'flex', alignItems: 'center', gap: 3,
+              }}>{f}</span>
+            ))}
+          </div>
+
+          {/* Sign in link */}
+          <p style={{ textAlign: 'center', fontSize: '0.85rem', color: t.muted, marginTop: 20 }}>
+            Already have an account?{' '}
+            <Link to="/login" style={{ color: t.green, fontWeight: 700, textDecoration: 'none' }}>
+              Sign in →
+            </Link>
+          </p>
         </div>
       </motion.div>
     </div>

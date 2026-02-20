@@ -7,8 +7,15 @@ const path = require('path');
 const app = express();
 
 // CORS configuration
+const localhostOriginRegex = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173'],
+  origin: (origin, callback) => {
+    if (!origin || localhostOriginRegex.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

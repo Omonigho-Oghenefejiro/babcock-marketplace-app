@@ -1,34 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  ShoppingCart, 
-  User, 
-  Menu, 
-  Search, 
-  Heart, 
-  GraduationCap,
-  X,
-  LogOut
-} from 'lucide-react';
+import { ShoppingCart, Menu, Search, Heart, X, LogOut, ChevronDown } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Input } from './ui/input';
+
+const FontLoader = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Instrument+Sans:wght@400;500;600&display=swap');
+  `}</style>
+);
+
+const tokens = {
+  green: '#1B4332',
+  greenMid: '#2D6A4F',
+  greenLight: '#D8F3DC',
+  amber: '#F4A226',
+  cream: '#FAF7F2',
+  ink: '#1A1A1A',
+  muted: '#6B7280',
+};
 
 const Navbar = () => {
   const { user, cart, wishlist, searchQuery, setSearchQuery, logout } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const firstName = user?.name?.split(' ')[0] || 'Account';
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 12);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -36,241 +43,588 @@ const Navbar = () => {
   useEffect(() => {
     setIsMenuOpen(false);
     setIsSearchOpen(false);
+    setIsUserMenuOpen(false);
   }, [location]);
+
+  useEffect(() => {
+    if (isSearchOpen) searchRef.current?.focus();
+  }, [isSearchOpen]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const navLinks = [
+    { label: 'Shop', to: '/shop' },
+    { label: 'Sell', to: '/sell' },
+    { label: 'Messages', to: '/messages' },
+  ];
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-200 ${
-        isScrolled 
-          ? 'bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm' 
-          : 'bg-white border-b border-gray-100'
-      }`}>
-        <div className="container-custom">
+      <FontLoader />
+
+      <div
+        style={{
+          background: tokens.green,
+          fontFamily: "'Instrument Sans', sans-serif",
+        }}
+        className="text-center text-xs py-2 px-4 text-white/80 tracking-wide"
+      >
+        🎓 Exclusively for Babcock University students — verify with your{' '}
+        <span className="text-amber-300 font-semibold">@babcock.edu.ng</span> email
+      </div>
+
+      <nav
+        style={{
+          background: isScrolled ? 'rgba(250,247,242,0.97)' : tokens.cream,
+          borderBottom: isScrolled ? '1px solid #E8E2D9' : '1px solid transparent',
+          backdropFilter: isScrolled ? 'blur(12px)' : 'none',
+          boxShadow: isScrolled ? '0 2px 20px rgba(27,67,50,0.06)' : 'none',
+          transition: 'all 0.25s ease',
+          fontFamily: "'Instrument Sans', sans-serif",
+        }}
+        className="fixed top-8 w-full z-50"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
-            {/* Logo - Refactoring UI: Choose a personality */}
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="bg-primary-800 p-2 rounded-lg">
-                <GraduationCap className="h-5 w-5 text-white" />
+            <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
+              <div
+                style={{ background: tokens.green }}
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform"
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zm-7 10.18V16l7 3.82 7-3.82v-2.82L12 17l-7-3.82z" />
+                </svg>
               </div>
-              <span className="font-bold text-lg">
-                <span className="text-primary-800">Babcock</span>
-                <span className="text-gray-900">Market</span>
+              <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }} className="text-lg leading-none">
+                <span style={{ color: tokens.green }}>Babcock</span>
+                <span style={{ color: tokens.ink }}> Market</span>
               </span>
             </Link>
 
-            {/* Desktop Navigation - Refactoring UI: Limit choices */}
-            <div className="hidden md:flex items-center space-x-1">
-              <Link
-                to="/shop"
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  location.pathname === '/shop'
-                    ? 'bg-primary-50 text-primary-800'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Shop
-              </Link>
-              <Link
-                to="/sell"
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  location.pathname === '/sell'
-                    ? 'bg-primary-50 text-primary-800'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                Sell
-              </Link>
+            <div className="hidden md:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  style={{
+                    color: isActive(link.to) ? tokens.green : tokens.muted,
+                    background: isActive(link.to) ? tokens.greenLight : 'transparent',
+                    fontWeight: isActive(link.to) ? 600 : 500,
+                    fontSize: '0.875rem',
+                  }}
+                  className="px-4 py-2 rounded-lg transition-all hover:bg-green-50 hover:text-green-800"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
 
-            {/* Desktop Search */}
-            <div className="hidden md:block flex-1 max-w-md mx-8">
+            <div className="hidden md:block flex-1 max-w-xs mx-6">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                  style={{ color: tokens.muted }}
+                />
+                <input
                   type="text"
-                  placeholder="Search for anything..."
-                  className="pl-10 w-full bg-gray-50 border-gray-200 focus:bg-white"
+                  placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    background: '#F0EBE3',
+                    border: '1.5px solid transparent',
+                    borderRadius: '10px',
+                    fontFamily: "'Instrument Sans', sans-serif",
+                    fontSize: '0.875rem',
+                    color: tokens.ink,
+                    outline: 'none',
+                    transition: 'border-color 0.2s, background 0.2s',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.background = '#fff';
+                    e.currentTarget.style.borderColor = tokens.greenMid;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.background = '#F0EBE3';
+                    e.currentTarget.style.borderColor = 'transparent';
+                  }}
+                  className="w-full pl-9 pr-4 py-2"
                 />
               </div>
             </div>
 
-            {/* Desktop Right Menu */}
-            <div className="hidden md:flex items-center space-x-2">
+            <div className="hidden md:flex items-center gap-1">
               <Link
                 to="/wishlist"
-                className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                className="relative p-2.5 rounded-xl transition-all hover:bg-green-50 group"
+                title="Wishlist"
               >
-                <Heart className="h-5 w-5" />
+                <Heart
+                  className="w-5 h-5 transition-colors group-hover:text-red-500"
+                  style={{ color: wishlist.length > 0 ? '#EF4444' : tokens.muted }}
+                  fill={wishlist.length > 0 ? '#EF4444' : 'none'}
+                />
                 {wishlist.length > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-pink-500 text-white">
+                  <span
+                    style={{ background: '#EF4444', fontFamily: "'Syne', sans-serif" }}
+                    className="absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                  >
                     {wishlist.length}
-                  </Badge>
+                  </span>
                 )}
               </Link>
 
               <Link
                 to="/cart"
-                className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                className="relative p-2.5 rounded-xl transition-all hover:bg-green-50 group"
+                title="Cart"
               >
-                <ShoppingCart className="h-5 w-5" />
+                <ShoppingCart
+                  className="w-5 h-5 transition-colors group-hover:text-green-700"
+                  style={{ color: cartCount > 0 ? tokens.green : tokens.muted }}
+                />
                 {cartCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-primary-800 text-white">
+                  <span
+                    style={{ background: tokens.amber, fontFamily: "'Syne', sans-serif" }}
+                    className="absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                  >
                     {cartCount}
-                  </Badge>
+                  </span>
                 )}
               </Link>
 
               {user ? (
-                <div className="flex items-center space-x-2">
-                  <Link
-                    to="/dashboard"
-                    className="flex items-center space-x-2 px-3 py-2 bg-primary-50 text-primary-800 rounded-md hover:bg-primary-100 transition-colors"
-                  >
-                    <User className="h-4 w-4" />
-                    <span className="text-sm font-medium">{user.name?.split(' ')[0] || 'Profile'}</span>
-                  </Link>
+                <div className="relative ml-1" ref={userMenuRef}>
                   <button
-                    onClick={() => {
-                      logout();
-                      navigate('/');
+                    onClick={() => setIsUserMenuOpen((v) => !v)}
+                    style={{
+                      background: isUserMenuOpen ? tokens.green : tokens.greenLight,
+                      color: isUserMenuOpen ? '#fff' : tokens.green,
+                      fontFamily: "'Instrument Sans', sans-serif",
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      borderRadius: '10px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
                     }}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    title="Sign Out"
+                    className="flex items-center gap-2 px-3 py-2"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <div
+                      style={{
+                        background: isUserMenuOpen ? 'rgba(255,255,255,0.2)' : tokens.green,
+                        color: '#fff',
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.7rem',
+                        fontWeight: 800,
+                        fontFamily: "'Syne', sans-serif",
+                      }}
+                    >
+                      {firstName[0].toUpperCase()}
+                    </div>
+                    {firstName}
+                    <ChevronDown
+                      className="w-3.5 h-3.5 transition-transform"
+                      style={{ transform: isUserMenuOpen ? 'rotate(180deg)' : 'rotate(0)' }}
+                    />
                   </button>
+
+                  {isUserMenuOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 8px)',
+                        right: 0,
+                        background: '#fff',
+                        border: '1px solid #E8E2D9',
+                        borderRadius: '14px',
+                        boxShadow: '0 8px 32px rgba(27,67,50,0.12)',
+                        minWidth: 180,
+                        overflow: 'hidden',
+                        fontFamily: "'Instrument Sans', sans-serif",
+                      }}
+                    >
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid #F0EBE3' }}>
+                        <p style={{ fontSize: '0.75rem', color: tokens.muted }}>Signed in as</p>
+                        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: tokens.ink, marginTop: 2 }}>
+                          {user.name}
+                        </p>
+                      </div>
+                      {[
+                        { label: 'Dashboard', to: '/dashboard' },
+                        { label: 'My Orders', to: '/dashboard' },
+                        { label: 'Sell an Item', to: '/sell' },
+                      ].map((item) => (
+                        <Link
+                          key={item.to + item.label}
+                          to={item.to}
+                          style={{
+                            display: 'block',
+                            padding: '10px 16px',
+                            fontSize: '0.875rem',
+                            color: tokens.ink,
+                            fontWeight: 500,
+                          }}
+                          className="hover:bg-green-50 hover:text-green-800 transition-colors"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                      <button
+                        onClick={() => {
+                          logout();
+                          navigate('/');
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          width: '100%',
+                          padding: '10px 16px',
+                          fontSize: '0.875rem',
+                          color: '#EF4444',
+                          fontWeight: 500,
+                          borderTop: '1px solid #F0EBE3',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontFamily: "'Instrument Sans', sans-serif",
+                        }}
+                        className="hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" /> Sign Out
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <Button asChild className="bg-primary-800 hover:bg-primary-900 text-white">
-                  <Link to="/login">
-                    <User className="mr-2 h-4 w-4" />
+                <div className="flex items-center gap-2 ml-1">
+                  <Link
+                    to="/login"
+                    style={{ color: tokens.green, fontWeight: 600, fontSize: '0.875rem' }}
+                    className="px-3 py-2 hover:underline"
+                  >
                     Sign In
                   </Link>
-                </Button>
+                  <Link
+                    to="/register"
+                    style={{
+                      background: tokens.green,
+                      color: '#fff',
+                      fontFamily: "'Instrument Sans', sans-serif",
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      borderRadius: '10px',
+                      padding: '8px 16px',
+                      transition: 'background 0.2s, transform 0.15s',
+                    }}
+                    className="hover:opacity-90 active:scale-95"
+                  >
+                    Join Free
+                  </Link>
+                </div>
               )}
             </div>
 
-            {/* Mobile Menu Button */}
-            <div className="flex items-center space-x-2 md:hidden">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="relative"
+            <div className="flex items-center gap-1 md:hidden">
+              <button
+                onClick={() => setIsSearchOpen((v) => !v)}
+                style={{ color: tokens.muted }}
+                className="p-2.5 rounded-xl hover:bg-green-50 transition-colors"
               >
-                <Search className="h-5 w-5" />
-              </Button>
-              
-              <Link to="/cart" className="relative p-2">
-                <ShoppingCart className="h-5 w-5 text-gray-600" />
+                {isSearchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+              </button>
+
+              <Link to="/cart" className="relative p-2.5 rounded-xl hover:bg-green-50 transition-colors">
+                <ShoppingCart className="w-5 h-5" style={{ color: tokens.muted }} />
                 {cartCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-primary-800 text-white">
+                  <span
+                    style={{ background: tokens.amber }}
+                    className="absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                  >
                     {cartCount}
-                  </Badge>
+                  </span>
                 )}
               </Link>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              <button
+                onClick={() => setIsMenuOpen((v) => !v)}
+                style={{ color: tokens.ink }}
+                className="p-2.5 rounded-xl hover:bg-green-50 transition-colors"
               >
-                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
+                {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
             </div>
           </div>
 
-          {/* Mobile Search */}
-          {isSearchOpen && (
-            <div className="mt-4 md:hidden animate-fade-in">
+          <div
+            style={{
+              maxHeight: isSearchOpen ? '80px' : '0',
+              overflow: 'hidden',
+              transition: 'max-height 0.3s ease',
+            }}
+          >
+            <div className="pb-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: tokens.muted }} />
+                <input
+                  ref={searchRef}
                   type="text"
                   placeholder="Search products..."
-                  className="pl-10 w-full"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  autoFocus
+                  style={{
+                    background: '#F0EBE3',
+                    border: '1.5px solid transparent',
+                    borderRadius: '10px',
+                    fontFamily: "'Instrument Sans', sans-serif",
+                    fontSize: '0.875rem',
+                    color: tokens.ink,
+                    outline: 'none',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.background = '#fff';
+                    e.currentTarget.style.borderColor = tokens.greenMid;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.background = '#F0EBE3';
+                    e.currentTarget.style.borderColor = 'transparent';
+                  }}
+                  className="w-full pl-9 pr-4 py-2.5"
                 />
               </div>
             </div>
-          )}
+          </div>
         </div>
       </nav>
 
-      {/* Mobile Menu */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-40 md:hidden animate-slide-in-right">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setIsMenuOpen(false)} />
-          <div className="absolute right-0 top-0 bottom-0 w-64 bg-white shadow-xl">
-            <div className="p-6">
-              <div className="space-y-4">
-                <Link
-                  to="/shop"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Shop
-                </Link>
-                <Link
-                  to="/sell"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Sell
-                </Link>
-                <Link
-                  to="/wishlist"
-                  className="flex items-center justify-between px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <span>Wishlist</span>
-                  {wishlist.length > 0 && (
-                    <Badge className="bg-pink-500 text-white">{wishlist.length}</Badge>
-                  )}
-                </Link>
+      <>
+        <div
+          onClick={() => setIsMenuOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            zIndex: 49,
+            opacity: isMenuOpen ? 1 : 0,
+            pointerEvents: isMenuOpen ? 'all' : 'none',
+            transition: 'opacity 0.25s ease',
+          }}
+        />
 
-                {user ? (
-                  <>
-                    <Link
-                      to="/dashboard"
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                    <button
-                      onClick={() => {
-                        logout();
-                        setIsMenuOpen(false);
-                        navigate('/');
-                      }}
-                      className="w-full flex items-center px-4 py-2 text-red-600 hover:bg-red-50 rounded-md"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Sign Out
-                    </button>
-                  </>
-                ) : (
-                  <Link
-                    to="/login"
-                    className="block px-4 py-2 text-center bg-primary-800 text-white rounded-md hover:bg-primary-900"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Sign In
-                  </Link>
-                )}
-              </div>
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: '76vw',
+            maxWidth: 300,
+            background: '#fff',
+            zIndex: 50,
+            transform: isMenuOpen ? 'translateX(0)' : 'translateX(100%)',
+            transition: 'transform 0.3s cubic-bezier(0.22,1,0.36,1)',
+            fontFamily: "'Instrument Sans', sans-serif",
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div style={{ background: tokens.green, padding: '24px 20px 20px' }}>
+            <div className="flex items-center justify-between mb-4">
+              <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, color: '#fff', fontSize: '1.1rem' }}>
+                Babcock Market
+              </span>
+              <button onClick={() => setIsMenuOpen(false)} style={{ color: 'rgba(255,255,255,0.7)' }}>
+                <X className="w-5 h-5" />
+              </button>
             </div>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <div
+                  style={{
+                    background: tokens.amber,
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: "'Syne', sans-serif",
+                    fontWeight: 800,
+                    color: '#fff',
+                    fontSize: '1rem',
+                  }}
+                >
+                  {firstName[0].toUpperCase()}
+                </div>
+                <div>
+                  <p style={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>{user.name}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem' }}>{user.email}</p>
+                </div>
+              </div>
+            ) : (
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem' }}>Sign in to start shopping</p>
+            )}
+          </div>
+
+          <nav style={{ flex: 1, padding: '12px 0', overflowY: 'auto' }}>
+            {navLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={() => setIsMenuOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 20px',
+                  fontSize: '0.95rem',
+                  fontWeight: isActive(link.to) ? 600 : 500,
+                  color: isActive(link.to) ? tokens.green : tokens.ink,
+                  background: isActive(link.to) ? tokens.greenLight : 'transparent',
+                  borderLeft: isActive(link.to) ? `3px solid ${tokens.green}` : '3px solid transparent',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {link.label}
+              </Link>
+            ))}
+
+            <Link
+              to="/wishlist"
+              onClick={() => setIsMenuOpen(false)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 20px',
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                color: tokens.ink,
+                borderLeft: '3px solid transparent',
+              }}
+              className="hover:bg-green-50"
+            >
+              <span>Wishlist</span>
+              {wishlist.length > 0 && (
+                <span
+                  style={{
+                    background: '#EF4444',
+                    color: '#fff',
+                    borderRadius: 999,
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    padding: '2px 7px',
+                  }}
+                >
+                  {wishlist.length}
+                </span>
+              )}
+            </Link>
+
+            {user && (
+              <Link
+                to="/dashboard"
+                onClick={() => setIsMenuOpen(false)}
+                style={{
+                  display: 'block',
+                  padding: '12px 20px',
+                  fontSize: '0.95rem',
+                  fontWeight: 500,
+                  color: tokens.ink,
+                  borderLeft: '3px solid transparent',
+                }}
+                className="hover:bg-green-50"
+              >
+                Dashboard
+              </Link>
+            )}
+          </nav>
+
+          <div style={{ padding: '16px 20px', borderTop: '1px solid #F0EBE3' }}>
+            {user ? (
+              <button
+                onClick={() => {
+                  logout();
+                  navigate('/');
+                  setIsMenuOpen(false);
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1.5px solid #FEE2E2',
+                  color: '#EF4444',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  background: 'none',
+                  cursor: 'pointer',
+                  fontFamily: "'Instrument Sans', sans-serif",
+                }}
+                className="hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Link
+                  to="/register"
+                  onClick={() => setIsMenuOpen(false)}
+                  style={{
+                    display: 'block',
+                    textAlign: 'center',
+                    padding: '12px',
+                    background: tokens.green,
+                    color: '#fff',
+                    borderRadius: '10px',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Join Free
+                </Link>
+                <Link
+                  to="/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  style={{
+                    display: 'block',
+                    textAlign: 'center',
+                    padding: '12px',
+                    border: `1.5px solid ${tokens.greenLight}`,
+                    color: tokens.green,
+                    borderRadius: '10px',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Sign In
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </>
 
-      {/* Spacer */}
-      <div className="h-16" />
+      <div className="h-24" />
     </>
   );
 };

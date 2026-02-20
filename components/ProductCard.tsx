@@ -1,10 +1,29 @@
 import React, { useState } from 'react';
-import { Heart, ShoppingCart, Star, Eye } from 'lucide-react';
+import { Heart, ShoppingCart, Star, ArrowUpRight } from 'lucide-react';
 import { Product } from '../types';
 import { useStore } from '../contexts/StoreContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
+
+/* ── Design tokens ── */
+const t = {
+  green:      '#1B4332',
+  greenMid:   '#2D6A4F',
+  greenLight: '#D8F3DC',
+  greenPale:  '#F0FAF2',
+  amber:      '#F4A226',
+  amberLight: '#FEF9EE',
+  cream:      '#FAF7F2',
+  ink:        '#1A1A1A',
+  muted:      '#9CA3AF',
+  border:     '#E8E2D9',
+};
+
+const conditionConfig: Record<string, { label: string; bg: string; color: string }> = {
+  'New':      { label: 'New',      bg: '#D1FAE5', color: '#065F46' },
+  'Like New': { label: 'Like New', bg: '#DBEAFE', color: '#1E40AF' },
+  'Good':     { label: 'Good',     bg: '#FEF3C7', color: '#92400E' },
+  'Fair':     { label: 'Fair',     bg: '#FFE4E6', color: '#9F1239' },
+};
 
 interface ProductCardProps {
   product: Product;
@@ -14,71 +33,74 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) => {
   const { user, addToCart, toggleWishlist, wishlist } = useStore();
   const navigate = useNavigate();
-  const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [cartPop, setCartPop] = useState(false);
 
   const isWishlisted = wishlist.some(item => item.id === product.id);
-  const mainImage = product.images?.[0] || 'https://placehold.co/400x400/e2e8f0/1e293b?text=No+Image';
+  const mainImage = product.images?.[0] || 'https://placehold.co/400x400/E8E2D9/1A1A1A?text=No+Image';
+  const condition = conditionConfig[product.condition] || { label: product.condition, bg: '#F3F4F6', color: '#6B7280' };
+  const ratingValue = typeof product.ratings === 'number' ? product.ratings : Number(product.ratings) || 0;
 
-  const handleAddToCart = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    if (!user) {
-      navigate('/login', { 
-        state: { 
-          from: `/product/${product.id}`, 
-          message: 'Sign in to add items to your cart',
-          pendingAction: { type: 'cart', productId: product.id }
-        } 
-      });
-      return;
-    }
+  const goToLogin = (msg: string) =>
+    navigate('/login', { state: { from: `/product/${product.id}`, message: msg, pendingAction: { type: 'cart', productId: product.id } } });
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) return goToLogin('Sign in to add items to your cart');
+    if (!product.inStock) return;
     addToCart(product);
+    setCartPop(true);
+    setTimeout(() => setCartPop(false), 1400);
   };
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) {
-      navigate('/login', { 
-        state: { 
-          from: `/product/${product.id}`, 
-          message: 'Sign in to save items to your wishlist',
-          pendingAction: { type: 'wishlist', productId: product.id }
-        } 
-      });
-      return;
-    }
+    if (!user) return goToLogin('Sign in to save items to your wishlist');
     toggleWishlist(product);
   };
 
-  // Compact view
+  /* ── Compact variant ── */
   if (compact) {
     return (
-      <Link to={`/product/${product.id}`} className="block group">
-        <div className="bg-white rounded-lg overflow-hidden border border-gray-100 hover:shadow-md transition-all">
-          <div className="aspect-square overflow-hidden">
-            <img 
-              src={imageError ? 'https://placehold.co/400x400/e2e8f0/1e293b?text=No+Image' : mainImage}
+      <Link to={`/product/${product.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+        <div style={{
+          background: '#fff', border: `1.5px solid ${t.border}`,
+          borderRadius: 14, overflow: 'hidden',
+          transition: 'box-shadow 0.2s, transform 0.2s',
+          fontFamily: "'Instrument Sans', sans-serif",
+        }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(27,67,50,0.1)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
+        >
+          <div style={{ aspectRatio: '1', overflow: 'hidden', background: t.cream }}>
+            <img
+              src={imageError ? 'https://placehold.co/400x400/E8E2D9/1A1A1A?text=No+Image' : mainImage}
               alt={product.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
               onError={() => setImageError(true)}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
             />
           </div>
-          <div className="p-2">
-            <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
-            <p className="text-xs text-gray-500 mb-1">{product.category}</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-primary-800">₦{product.price.toLocaleString()}</span>
-              <Button 
-                size="sm" 
-                className="h-7 px-2 text-xs bg-primary-800 hover:bg-primary-900"
+          <div style={{ padding: '10px 12px' }}>
+            <p style={{ fontWeight: 600, fontSize: '0.8rem', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginBottom: 2 }}>{product.title}</p>
+            <p style={{ fontSize: '0.7rem', color: t.muted, marginBottom: 6 }}>{product.category}</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '0.9rem', color: t.green }}>₦{product.price.toLocaleString()}</span>
+              <button
                 onClick={handleAddToCart}
+                style={{
+                  background: t.green, color: '#fff',
+                  border: 'none', borderRadius: 8, padding: '5px 10px',
+                  fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
+                  fontFamily: "'Instrument Sans', sans-serif",
+                }}
               >
                 Add
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -86,108 +108,191 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
     );
   }
 
-  const conditionColors = {
-    'New': 'bg-green-100 text-green-800',
-    'Like New': 'bg-blue-100 text-blue-800',
-    'Good': 'bg-yellow-100 text-yellow-800',
-    'Fair': 'bg-orange-100 text-orange-800',
-  };
-
+  /* ── Full card ── */
   return (
-    <div 
-      className="group relative bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+    <div
+      style={{
+        background: '#fff',
+        border: `1.5px solid ${hovered ? t.greenMid : t.border}`,
+        borderRadius: 20,
+        overflow: 'hidden',
+        transition: 'all 0.25s cubic-bezier(0.22,1,0.36,1)',
+        boxShadow: hovered ? '0 12px 36px rgba(27,67,50,0.12)' : '0 1px 4px rgba(0,0,0,0.04)',
+        transform: hovered ? 'translateY(-5px)' : 'translateY(0)',
+        fontFamily: "'Instrument Sans', sans-serif",
+        position: 'relative',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      {/* Image container - Refactoring UI: Everything has an intended size */}
-      <Link to={`/product/${product.id}`} className="block relative aspect-square overflow-hidden bg-gray-100">
-        <img 
-          src={imageError ? 'https://placehold.co/400x400/e2e8f0/1e293b?text=No+Image' : mainImage}
-          alt={product.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          onError={() => setImageError(true)}
-        />
+      {/* ── Image ── */}
+      <Link to={`/product/${product.id}`} style={{ textDecoration: 'none', display: 'block', position: 'relative' }}>
+        <div style={{ aspectRatio: '1', overflow: 'hidden', background: t.cream, position: 'relative' }}>
+          <img
+            src={imageError ? 'https://placehold.co/400x400/E8E2D9/1A1A1A?text=No+Image' : mainImage}
+            alt={product.title}
+            style={{
+              width: '100%', height: '100%', objectFit: 'cover',
+              transition: 'transform 0.45s cubic-bezier(0.22,1,0.36,1)',
+              transform: hovered ? 'scale(1.07)' : 'scale(1)',
+            }}
+            onError={() => setImageError(true)}
+          />
 
-        {/* Quick view overlay - appears on hover */}
-        <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-          <span className="bg-white text-gray-900 px-4 py-2 rounded-full text-sm font-medium flex items-center">
-            <Eye className="h-4 w-4 mr-2" />
-            Quick view
-          </span>
+          {/* Quick view pill — slides up on hover */}
+          <div style={{
+            position: 'absolute', bottom: 12, left: '50%',
+            transform: `translateX(-50%) translateY(${hovered ? 0 : 12}px)`,
+            opacity: hovered ? 1 : 0,
+            transition: 'all 0.25s ease',
+            background: 'rgba(26,26,26,0.82)',
+            backdropFilter: 'blur(8px)',
+            color: '#fff', borderRadius: 999,
+            padding: '6px 14px', fontSize: '0.72rem', fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
+          }}>
+            <ArrowUpRight size={12} /> View details
+          </div>
+
+          {/* Out of stock overlay */}
+          {!product.inStock && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'rgba(255,255,255,0.7)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{
+                background: t.ink, color: '#fff',
+                borderRadius: 999, padding: '5px 14px',
+                fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em',
+              }}>OUT OF STOCK</span>
+            </div>
+          )}
         </div>
 
-        {/* Condition badge - Refactoring UI: Use badges for metadata */}
-        <Badge className={`absolute top-3 left-3 ${conditionColors[product.condition] || 'bg-gray-100 text-gray-800'}`}>
-          {product.condition}
-        </Badge>
-
-        {/* Wishlist button - subtle until hover */}
-        <button 
-          onClick={handleToggleWishlist}
-          className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-200 ${
-            isWishlisted 
-              ? 'bg-pink-500 text-white' 
-              : 'bg-white/80 backdrop-blur-sm text-gray-600 hover:bg-white'
-          }`}
-        >
-          <Heart className={`h-4 w-4 ${isWishlisted ? 'fill-white' : ''}`} />
-        </button>
-
-        {/* Stock indicator - Refactoring UI: Don't rely on color alone */}
-        {!product.inStock && (
-          <div className="absolute bottom-3 left-3 right-3">
-            <Badge variant="destructive" className="w-full justify-center">
-              Out of Stock
-            </Badge>
-          </div>
-        )}
+        {/* ── Badges row ── */}
+        <div style={{
+          position: 'absolute', top: 10, left: 10,
+          display: 'flex', gap: 5,
+        }}>
+          {product.condition && (
+            <span style={{
+              background: condition.bg, color: condition.color,
+              fontSize: '0.65rem', fontWeight: 700,
+              borderRadius: 6, padding: '3px 8px',
+              letterSpacing: '0.03em',
+            }}>
+              {condition.label}
+            </span>
+          )}
+        </div>
       </Link>
 
-      {/* Content - Refactoring UI: Hierarchy through de-emphasis */}
-      <div className="p-4">
-        <Link to={`/product/${product.id}`} className="block mb-2">
-          <h3 className="font-medium text-gray-900 hover:text-primary-800 transition-colors line-clamp-1">
+      {/* ── Wishlist button ── */}
+      <button
+        onClick={handleToggleWishlist}
+        style={{
+          position: 'absolute', top: 10, right: 10,
+          width: 34, height: 34, borderRadius: '50%',
+          background: isWishlisted ? '#EF4444' : 'rgba(255,255,255,0.9)',
+          border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+          transition: 'all 0.2s',
+          transform: hovered || isWishlisted ? 'scale(1)' : 'scale(0.85)',
+          opacity: hovered || isWishlisted ? 1 : 0,
+        }}
+        aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+      >
+        <Heart
+          size={15}
+          color={isWishlisted ? '#fff' : '#6B7280'}
+          fill={isWishlisted ? '#fff' : 'none'}
+        />
+      </button>
+
+      {/* ── Content ── */}
+      <div style={{ padding: '16px 16px 18px' }}>
+
+        {/* Category + rating row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{
+            fontSize: '0.7rem', fontWeight: 600,
+            color: t.greenMid, textTransform: 'uppercase', letterSpacing: '0.07em',
+          }}>
+            {product.category}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Star size={11} fill={t.amber} color={t.amber} />
+            <span style={{ fontSize: '0.72rem', color: t.muted, fontWeight: 500 }}>
+              {ratingValue.toFixed(1)}
+            </span>
+          </div>
+        </div>
+
+        {/* Title */}
+        <Link to={`/product/${product.id}`} style={{ textDecoration: 'none' }}>
+          <h3 style={{
+            fontFamily: "'Syne', sans-serif", fontWeight: 700,
+            fontSize: '0.95rem', color: t.ink,
+            overflow: 'hidden', display: '-webkit-box',
+            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+            lineHeight: 1.35, marginBottom: 8,
+            transition: 'color 0.15s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.color = t.greenMid; }}
+            onMouseLeave={e => { e.currentTarget.style.color = t.ink; }}
+          >
             {product.title}
           </h3>
         </Link>
-        
-        {/* Category and rating - de-emphasized */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-gray-500">{product.category}</span>
-          <div className="flex items-center">
-            <Star className="h-3 w-3 fill-accent-500 text-accent-500 mr-1" />
-            <span className="text-xs text-gray-600">{product.ratings.toFixed(1)}</span>
-          </div>
-        </div>
 
-        <p className="text-sm text-gray-600 line-clamp-2 mb-4">
+        {/* Description */}
+        <p style={{
+          fontSize: '0.78rem', color: t.muted, lineHeight: 1.6,
+          overflow: 'hidden', display: '-webkit-box',
+          WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          marginBottom: 14,
+        }}>
           {product.description}
         </p>
 
-        {/* Price and add to cart - Refactoring UI: Action hierarchy */}
-        <div className="flex items-center justify-between">
+        {/* Price + Cart row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <span className="text-xs text-gray-500">Price</span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl font-bold text-gray-900">₦{product.price.toLocaleString()}</span>
-              {product.originalPrice && (
-                <span className="text-xs text-gray-400 line-through">₦{product.originalPrice.toLocaleString()}</span>
-              )}
+            {product.originalPrice && (
+              <span style={{ fontSize: '0.7rem', color: t.muted, textDecoration: 'line-through', marginRight: 5 }}>
+                ₦{product.originalPrice.toLocaleString()}
+              </span>
+            )}
+            <div style={{
+              fontFamily: "'Syne', sans-serif", fontWeight: 800,
+              fontSize: '1.1rem', color: t.green, lineHeight: 1,
+            }}>
+              ₦{product.price.toLocaleString()}
             </div>
           </div>
-          
-          <Button
-            size="sm"
-            onClick={() => handleAddToCart()}
+
+          {/* Add to cart button — with pop animation */}
+          <button
+            onClick={handleAddToCart}
             disabled={!product.inStock}
-            className={product.inStock 
-              ? 'bg-primary-800 hover:bg-primary-900 text-white' 
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            }
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: cartPop ? t.greenMid : product.inStock ? t.green : '#E5E7EB',
+              color: product.inStock ? '#fff' : t.muted,
+              border: 'none', borderRadius: 10,
+              padding: '9px 14px', cursor: product.inStock ? 'pointer' : 'not-allowed',
+              fontFamily: "'Instrument Sans', sans-serif", fontWeight: 600,
+              fontSize: '0.8rem', transition: 'all 0.2s',
+              transform: cartPop ? 'scale(1.08)' : 'scale(1)',
+            }}
+            onMouseEnter={e => { if (product.inStock && !cartPop) e.currentTarget.style.background = t.greenMid; }}
+            onMouseLeave={e => { if (!cartPop) e.currentTarget.style.background = product.inStock ? t.green : '#E5E7EB'; }}
           >
-            <ShoppingCart className="h-4 w-4 mr-1" />
-            Add
-          </Button>
+            <ShoppingCart size={14} />
+            {cartPop ? 'Added ✓' : 'Add'}
+          </button>
         </div>
       </div>
     </div>

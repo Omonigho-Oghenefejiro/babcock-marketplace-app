@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Heart, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -67,7 +66,7 @@ const Wishlist = () => {
           animate="visible"
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
         >
-          {wishlist.map((product, index) => (
+          {wishlist.map((product) => (
             <motion.div 
               key={product.id} 
               variants={fadeUpVariants}

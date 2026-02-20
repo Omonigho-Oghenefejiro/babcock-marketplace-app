@@ -1,252 +1,392 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, ShoppingBag, ShoppingCart, CreditCard, Loader, Plus, Minus, ShieldAlert, ArrowLeft } from 'lucide-react';
+import {
+  Trash2, ShoppingBag, ShoppingCart, CreditCard,
+  Loader, Plus, Minus, ShieldAlert, ArrowLeft, Tag
+} from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
 import API from '../services/api';
-import { fadeUpVariants, staggerContainerVariants } from '../lib/animations';
 
+/* ── Tokens ── */
+const t = {
+  green:      '#1B4332',
+  greenMid:   '#2D6A4F',
+  greenLight: '#D8F3DC',
+  greenPale:  '#F0FAF2',
+  amber:      '#F4A226',
+  cream:      '#FAF7F2',
+  ink:        '#1A1A1A',
+  muted:      '#6B7280',
+  border:     '#E8E2D9',
+};
+
+/* ════════════════════════
+   CART
+════════════════════════ */
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, user } = useStore();
   const { addToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
 
-  const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const subtotal   = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const serviceFee = 500;
-  const total = subtotal + serviceFee;
+  const total      = subtotal + serviceFee;
 
-  const handlePaystackCheckout = async () => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    
+  const handleCheckout = async () => {
+    if (!user) { navigate('/login'); return; }
     setIsProcessing(true);
-    
     try {
-      // 1. Initialize Payment on Backend
-      const { data } = await API.post('/payment/initialize', {
-        email: user.email,
-        amount: total
-      });
-
-      // 2. Redirect user to Paystack Payment Page
+      const { data } = await API.post('/payment/initialize', { email: user.email, amount: total });
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
       } else {
         addToast('Failed to initialize payment', 'error');
         setIsProcessing(false);
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       addToast('Payment connection failed', 'error');
       setIsProcessing(false);
     }
   };
 
-  const handleQtyInput = (id: string, val: string, stock: number) => {
-    const num = parseInt(val);
-    if (!isNaN(num) && num > 0) {
-      updateQuantity(id, Math.min(num, stock));
-    } else if (val === '') {
-       // Allow empty temporarily while typing
-    }
-  };
-
+  /* ── Admin view ── */
   if (user?.role === 'admin') {
-      return (
-          <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-            <div className="container-custom py-24 text-center">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="w-24 h-24 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <ShieldAlert className="h-12 w-12 text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Administrator View</h2>
-                <p className="text-gray-500 mb-8 max-w-md mx-auto">Administrators cannot place orders or manage personal carts.</p>
-                <Button asChild className="bg-primary-800 hover:bg-primary-900 px-8 py-6 text-base font-semibold rounded-xl">
-                  <Link to="/admin">Go to Admin Dashboard</Link>
-                </Button>
-              </motion.div>
-            </div>
-          </div>
-      );
+    return (
+      <EmptyState
+        icon={<ShieldAlert size={32} color={t.green} />}
+        title="Administrator View"
+        desc="Admins cannot place orders. Switch to a student account to shop."
+        cta={{ label: 'Go to Admin Dashboard', to: '/admin' }}
+      />
+    );
   }
 
+  /* ── Empty cart ── */
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-        <div className="container-custom py-24 text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="w-24 h-24 bg-gradient-to-br from-primary-400 to-primary-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <ShoppingBag className="h-12 w-12 text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
-            <p className="text-gray-500 mb-8">Looks like you haven't added anything yet.</p>
-            <Button asChild className="bg-primary-800 hover:bg-primary-900 px-8 py-6 text-base font-semibold rounded-xl">
-              <Link to="/shop">Start Shopping</Link>
-            </Button>
-          </motion.div>
-        </div>
-      </div>
+      <EmptyState
+        icon={<ShoppingBag size={32} color={t.green} />}
+        title="Your cart is empty"
+        desc="You haven't added anything yet. Go find something you need."
+        cta={{ label: 'Browse Products', to: '/shop' }}
+      />
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Page Header */}
-      <section className="bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 py-8 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 right-0 w-72 h-72 bg-accent-500/20 rounded-full blur-3xl"></div>
+    <div style={{ background: t.cream, minHeight: '100vh', fontFamily: "'Instrument Sans', sans-serif" }}>
+
+      {/* ── Header ── */}
+      <div style={{ background: t.green, padding: '40px 24px 56px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 80px)`,
+        }} />
+        <div style={{
+          position: 'absolute', right: -40, top: -40, width: 280, height: 280,
+          background: `radial-gradient(circle, rgba(244,162,38,0.15) 0%, transparent 70%)`, borderRadius: '50%',
+        }} />
+        <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <Link to="/shop" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem', fontWeight: 500,
+            textDecoration: 'none', marginBottom: 16, transition: 'color 0.15s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
+          >
+            <ArrowLeft size={14} /> Continue Shopping
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              background: 'rgba(255,255,255,0.1)', width: 44, height: 44,
+              borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <ShoppingCart size={20} color="#fff" />
+            </div>
+            <div>
+              <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.8rem', color: '#fff', lineHeight: 1.1 }}>
+                Shopping Cart
+              </h1>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.82rem', marginTop: 2 }}>
+                {cart.length} item{cart.length !== 1 ? 's' : ''} in your cart
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="container-custom relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Link to="/shop" className="inline-flex items-center text-primary-200 hover:text-white mb-4 transition-colors">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Continue Shopping
-            </Link>
-            <div className="flex items-center gap-4">
-              <Badge variant="outline" className="border-white/30 text-white">
-                <ShoppingCart className="h-3.5 w-3.5 mr-1" />
-                {cart.length} items
-              </Badge>
-              <h1 className="text-2xl md:text-3xl font-bold text-white">Shopping Cart</h1>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      <div className="container-custom py-8">
-        <div className="lg:grid lg:grid-cols-12 lg:gap-8">
-          {/* Cart Items */}
-          <motion.div 
-            variants={staggerContainerVariants}
-            initial="hidden"
-            animate="visible"
-            className="lg:col-span-8"
-          >
-            <div className="bg-white shadow-sm rounded-2xl border border-gray-100 overflow-hidden">
-              <ul className="divide-y divide-gray-100">
-                {cart.map((item, index) => (
-                  <motion.li 
-                    key={item.id} 
-                    variants={fadeUpVariants}
-                    className="p-6 flex flex-col sm:flex-row items-center hover:bg-gray-50/50 transition-colors"
-                  >
-                    <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                      <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="mt-4 sm:mt-0 sm:ml-6 flex-1 w-full text-center sm:text-left">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{item.title}</h3>
-                          <Badge className="mt-1 bg-gray-100 text-gray-600">{item.category}</Badge>
-                        </div>
-                        <p className="font-bold text-xl text-primary-900 mt-2 sm:mt-0">₦{(item.price * item.quantity).toLocaleString()}</p>
-                      </div>
-                      
-                      <div className="flex flex-col sm:flex-row justify-between items-center mt-4">
-                        {/* Quantity Controls */}
-                        <div className="flex items-center border border-gray-200 rounded-xl h-10 overflow-hidden">
-                          <motion.button 
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            disabled={item.quantity <= 1}
-                            className="h-full px-4 hover:bg-gray-50 text-gray-500 disabled:opacity-30 transition-colors"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </motion.button>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={item.quantity}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleQtyInput(item.id, e.target.value, Number(item.stock))}
-                            className="w-14 h-full text-center text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 border-x border-gray-200"
-                          />
-                          <motion.button 
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            disabled={item.quantity >= Number(item.stock)}
-                            className="h-full px-4 hover:bg-gray-50 text-gray-500 disabled:opacity-30 transition-colors"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </motion.button>
-                        </div>
-                        
-                        <motion.button 
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => removeFromCart(item.id)} 
-                          className="mt-4 sm:mt-0 text-red-500 hover:text-red-700 text-sm font-medium flex items-center transition-colors px-4 py-2 rounded-lg hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" /> Remove
-                        </motion.button>
-                      </div>
-                    </div>
-                  </motion.li>
-                ))}
-              </ul>
-            </div>
-          </motion.div>
-
-          {/* Order Summary */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="lg:col-span-4 mt-8 lg:mt-0"
-          >
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
-              <div className="flow-root">
-                <dl className="-my-4 text-sm divide-y divide-gray-100">
-                  <div className="py-4 flex items-center justify-between">
-                    <dt className="text-gray-600">Subtotal</dt>
-                    <dd className="font-semibold text-gray-900">₦{subtotal.toLocaleString()}</dd>
-                  </div>
-                  <div className="py-4 flex items-center justify-between">
-                    <dt className="text-gray-600">Service Fee</dt>
-                    <dd className="font-semibold text-gray-900">₦{serviceFee.toLocaleString()}</dd>
-                  </div>
-                  <div className="py-4 flex items-center justify-between">
-                    <dt className="text-lg font-bold text-gray-900">Total</dt>
-                    <dd className="text-xl font-bold text-primary-800">₦{total.toLocaleString()}</dd>
-                  </div>
-                </dl>
-              </div>
-
-              <motion.button 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handlePaystackCheckout}
-                disabled={isProcessing}
-                className="mt-6 w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-4 rounded-xl font-bold text-lg hover:from-green-600 hover:to-green-700 transition-all flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-green-200"
-              >
-                {isProcessing ? <Loader className="animate-spin h-5 w-5 mr-2" /> : <CreditCard className="mr-2 h-5 w-5" />}
-                {isProcessing ? 'Processing...' : `Pay ₦${total.toLocaleString()}`}
-              </motion.button>
-              <div className="mt-4 flex justify-center">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/1/1f/Paystack.png" alt="Secured by Paystack" className="h-6 opacity-70" />
-              </div>
-            </div>
-          </motion.div>
+        {/* Wave */}
+        <div style={{ position: 'absolute', bottom: -1, left: 0, right: 0, lineHeight: 0 }}>
+          <svg viewBox="0 0 1440 40" preserveAspectRatio="none" style={{ display: 'block', width: '100%', height: 40 }}>
+            <path d="M0,40 C400,10 1040,38 1440,18 L1440,40 Z" fill={t.cream} />
+          </svg>
         </div>
       </div>
+
+      {/* ── Body ── */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px 80px', display: 'grid', gridTemplateColumns: '1fr 360px', gap: 28, alignItems: 'start' }}
+        className="cart-grid"
+      >
+        {/* ── Cart items ── */}
+        <div>
+          <AnimatePresence>
+            {cart.map((item) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20, height: 0, marginBottom: 0 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                style={{
+                  background: '#fff', border: `1.5px solid ${t.border}`,
+                  borderRadius: 18, padding: '20px 24px',
+                  display: 'flex', gap: 18, alignItems: 'center',
+                  marginBottom: 14,
+                }}
+              >
+                {/* Image */}
+                <Link to={`/product/${item.id}`} style={{ flexShrink: 0 }}>
+                  <div style={{
+                    width: 88, height: 88, borderRadius: 12,
+                    overflow: 'hidden', background: t.cream,
+                    border: `1px solid ${t.border}`,
+                  }}>
+                    <img
+                      src={item.images[0]}
+                      alt={item.title}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                    />
+                  </div>
+                </Link>
+
+                {/* Details */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <Link to={`/product/${item.id}`} style={{ textDecoration: 'none' }}>
+                        <h3 style={{
+                          fontFamily: "'Syne', sans-serif", fontWeight: 700,
+                          fontSize: '0.97rem', color: t.ink, lineHeight: 1.3,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          {item.title}
+                        </h3>
+                      </Link>
+                      <span style={{
+                        display: 'inline-block', marginTop: 4,
+                        background: t.greenLight, color: t.greenMid,
+                        fontSize: '0.68rem', fontWeight: 600, borderRadius: 6, padding: '2px 8px',
+                      }}>
+                        {item.category}
+                      </span>
+                    </div>
+                    <p style={{
+                      fontFamily: "'Syne', sans-serif", fontWeight: 800,
+                      fontSize: '1.1rem', color: t.green, flexShrink: 0,
+                    }}>
+                      ₦{(item.price * item.quantity).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
+                    {/* Qty controls */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center',
+                      border: `1.5px solid ${t.border}`, borderRadius: 10, overflow: 'hidden',
+                    }}>
+                      <button
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        disabled={item.quantity <= 1}
+                        style={{
+                          width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'none', border: 'none', cursor: item.quantity <= 1 ? 'not-allowed' : 'pointer',
+                          color: item.quantity <= 1 ? '#D1D5DB' : t.ink, transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => { if (item.quantity > 1) e.currentTarget.style.background = t.greenPale; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                      >
+                        <Minus size={13} />
+                      </button>
+                      <input
+                        type="text" inputMode="numeric"
+                        value={item.quantity}
+                        onChange={e => {
+                          const n = parseInt(e.target.value);
+                          if (!isNaN(n) && n > 0) updateQuantity(item.id, Math.min(n, Number(item.stock)));
+                        }}
+                        style={{
+                          width: 36, height: 34, textAlign: 'center',
+                          border: 'none', borderLeft: `1px solid ${t.border}`, borderRight: `1px solid ${t.border}`,
+                          fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.85rem',
+                          color: t.ink, background: '#fff', outline: 'none',
+                        }}
+                      />
+                      <button
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        disabled={item.quantity >= Number(item.stock)}
+                        style={{
+                          width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'none', border: 'none', cursor: item.quantity >= Number(item.stock) ? 'not-allowed' : 'pointer',
+                          color: item.quantity >= Number(item.stock) ? '#D1D5DB' : t.ink, transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => { if (item.quantity < Number(item.stock)) e.currentTarget.style.background = t.greenPale; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                      >
+                        <Plus size={13} />
+                      </button>
+                    </div>
+
+                    {/* Remove */}
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        background: 'none', border: '1.5px solid #FEE2E2',
+                        borderRadius: 9, padding: '6px 12px', cursor: 'pointer',
+                        color: '#DC2626', fontSize: '0.75rem', fontWeight: 600,
+                        fontFamily: "'Instrument Sans', sans-serif", transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                    >
+                      <Trash2 size={12} /> Remove
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* ── Order Summary ── */}
+        <div style={{ position: 'sticky', top: 104 }}>
+          <div style={{
+            background: '#fff', border: `1.5px solid ${t.border}`,
+            borderRadius: 20, overflow: 'hidden',
+          }}>
+            {/* Header */}
+            <div style={{ background: t.green, padding: '18px 24px' }}>
+              <h2 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1rem', color: '#fff' }}>
+                Order Summary
+              </h2>
+            </div>
+
+            <div style={{ padding: '20px 24px' }}>
+              {/* Line items */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.875rem', color: t.muted }}>Subtotal ({cart.length} items)</span>
+                  <span style={{ fontWeight: 600, color: t.ink, fontSize: '0.875rem' }}>₦{subtotal.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.875rem', color: t.muted, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Tag size={12} /> Service Fee
+                  </span>
+                  <span style={{ fontWeight: 600, color: t.ink, fontSize: '0.875rem' }}>₦{serviceFee.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div style={{ borderTop: `1px solid ${t.border}`, margin: '16px 0' }} />
+
+              {/* Total */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 22 }}>
+                <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '1rem', color: t.ink }}>Total</span>
+                <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.3rem', color: t.green }}>
+                  ₦{total.toLocaleString()}
+                </span>
+              </div>
+
+              {/* Checkout button */}
+              <button
+                onClick={handleCheckout}
+                disabled={isProcessing}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  background: isProcessing ? '#059669' : '#059669',
+                  color: '#fff', border: 'none', borderRadius: 12, padding: '15px',
+                  fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.95rem',
+                  cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.8 : 1,
+                  boxShadow: '0 4px 16px rgba(5,150,105,0.3)', transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { if (!isProcessing) e.currentTarget.style.background = '#047857'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#059669'; }}
+              >
+                {isProcessing
+                  ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Processing...</>
+                  : <><CreditCard size={16} /> Pay ₦{total.toLocaleString()}</>
+                }
+              </button>
+
+              {/* Paystack badge */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14 }}>
+                <span style={{ fontSize: '0.7rem', color: t.muted }}>Secured by</span>
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/1/1f/Paystack.png"
+                  alt="Paystack" style={{ height: 16, opacity: 0.5 }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Trust note */}
+          <div style={{
+            marginTop: 14, background: t.greenPale, border: `1px solid ${t.greenLight}`,
+            borderRadius: 12, padding: '12px 16px',
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+          }}>
+            <span style={{ fontSize: '1rem', flexShrink: 0 }}>🔒</span>
+            <p style={{ fontSize: '0.75rem', color: t.greenMid, lineHeight: 1.6 }}>
+              All transactions are processed securely. Your payment info is never stored on our servers.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .cart-grid { grid-template-columns: 1fr !important; }
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 };
+
+/* ── Shared empty state ── */
+const EmptyState = ({ icon, title, desc, cta }: {
+  icon: React.ReactNode; title: string; desc: string;
+  cta: { label: string; to: string };
+}) => (
+  <div style={{ background: t.cream, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+      style={{ textAlign: 'center', maxWidth: 360 }}
+    >
+      <div style={{
+        width: 80, height: 80, borderRadius: 20,
+        background: t.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 20px',
+      }}>
+        {icon}
+      </div>
+      <h2 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.4rem', color: t.ink, marginBottom: 8 }}>{title}</h2>
+      <p style={{ fontSize: '0.875rem', color: t.muted, marginBottom: 24, lineHeight: 1.7 }}>{desc}</p>
+      <Link to={cta.to} style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        background: t.green, color: '#fff', textDecoration: 'none',
+        fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.9rem',
+        padding: '12px 28px', borderRadius: 12,
+        boxShadow: '0 4px 16px rgba(27,67,50,0.2)',
+      }}>
+        {cta.label} <ArrowLeft size={14} style={{ transform: 'rotate(180deg)' }} />
+      </Link>
+    </motion.div>
+  </div>
+);
 
 export default Cart;

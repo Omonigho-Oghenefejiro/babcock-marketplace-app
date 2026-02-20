@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { User, Product, CartItem, UserRole, UserRoles, Order, Review, Conversation, Message, Dispute } from '../types';
+import { User, Product, CartItem, Order, Review, Conversation, Dispute } from '../types';
 import API from '../services/api';
 import { useToast } from './ToastContext';
-import { MOCK_DISPUTES, PRODUCTS, MOCK_USER, EXTRA_USERS, MOCK_ADMIN, MOCK_CONVERSATIONS } from '../services/mockData';
 
 interface StoreContextType {
   user: User | null;
@@ -16,47 +15,114 @@ interface StoreContextType {
   disputes: Dispute[];
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  login: (email: string, password?: string, role?: UserRole) => Promise<void>;
+  login: (email: string, password?: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string, phone: string) => Promise<void>;
   logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
-  addToCart: (product: Product, quantity?: number) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeFromCart: (productId: string) => void;
-  clearCart: () => void;
-  addProduct: (product: Product) => void;
-  updateProduct: (productId: string, updates: Partial<Product>) => void;
-  deleteProduct: (productId: string) => void;
-  toggleWishlist: (product: Product) => void;
-  checkout: () => void;
-  addReview: (productId: string, rating: number, comment: string) => void;
-  sendMessage: (receiverId: string, content: string, productId?: string) => void;
-  markAsRead: (conversationId: string) => void;
+  updateUser: (updates: Partial<User>) => Promise<void>;
+  addToCart: (product: Product, quantity?: number) => Promise<void>;
+  updateQuantity: (productId: string, quantity: number) => Promise<void>;
+  removeFromCart: (productId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
+  addProduct: (product: Product) => Promise<void>;
+  updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
+  toggleWishlist: (product: Product) => Promise<void>;
+  checkout: () => Promise<void>;
+  addReview: (productId: string, rating: number, comment: string) => Promise<void>;
+  sendMessage: (receiverId: string, content: string, productId?: string) => Promise<void>;
+  markAsRead: (conversationId: string) => Promise<void>;
   updateUserStatus: (userId: string, status: 'active' | 'suspended') => void;
   impersonateUser: (userId: string) => void;
-  updateProductStatus: (productId: string, status: 'approved' | 'rejected') => void;
-  updateOrderStatus: (orderId: string, status: Order['status']) => void;
+  updateProductStatus: (productId: string, status: 'approved' | 'rejected') => Promise<void>;
+  updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
   requestReturn: (orderId: string) => Promise<void>;
   updateDisputeStatus: (id: string, status: 'resolved' | 'dismissed') => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
+
+const getAverageRating = (ratings: unknown): number => {
+  if (typeof ratings === 'number') return ratings;
+  if (Array.isArray(ratings)) {
+    const values = ratings
+      .map((entry) => {
+        if (typeof entry === 'number') return entry;
+        if (entry && typeof entry === 'object' && 'rating' in entry) {
+          return Number((entry as { rating?: unknown }).rating);
+        }
+        return Number(entry);
+      })
+      .filter((value) => Number.isFinite(value));
+    if (!values.length) return 0;
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  }
+  const asNumber = Number(ratings);
+  return Number.isFinite(asNumber) ? asNumber : 0;
+};
+
+const normalizeUser = (user: User | Record<string, any>): User => ({
+  id: (user as any).id || (user as any)._id,
+  name: (user as any).fullName || (user as any).name || 'User',
+  fullName: (user as any).fullName || (user as any).name,
+  email: (user as any).email,
+  phone: (user as any).phone,
+  role: (user as any).role || 'user',
+  isVerified: (user as any).isVerified ?? false,
+  avatar: (user as any).profileImage || (user as any).avatar,
+  profileImage: (user as any).profileImage || (user as any).avatar,
+  ratings: (user as any).ratings,
+});
+
+const normalizeProduct = (product: Product | Record<string, any>): Product => {
+  const seller = normalizeUser(product.seller || {});
+  const rawImages = Array.isArray((product as any).images)
+    ? (product as any).images
+    : (product as any).images
+      ? [(product as any).images]
+      : (product as any).image
+        ? [(product as any).image]
+        : [];
+  const images = rawImages
+    .map((img: unknown) => String(img))
+    .filter(Boolean)
+    .map((img: string) => {
+      if (img.startsWith('http') || img.startsWith('data:')) return img;
+      const normalized = img.startsWith('/') ? img : `/${img}`;
+      return `${apiOrigin}${normalized}`;
+    });
+  return {
+    ...(product as Product),
+    id: (product as any).id || (product as any)._id,
+    seller,
+    images,
+    ratings: getAverageRating((product as any).ratings),
+  };
+};
+
+const normalizeCartItem = (item: any): CartItem => {
+  const product = item?.productId || {};
+  return {
+    id: product._id || product.id || item.productId,
+    title: product.title || item.title || 'Item',
+    price: Number(product.price || item.price || 0),
+    quantity: Number(item.quantity || 1),
+    images: Array.isArray(product.images) ? product.images : item.images || [],
+    category: product.category || item.category || 'Others',
+    stock: product.inStock === false ? 0 : 1,
+  };
+};
+
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
   
   // -- Auth State --
   const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('token');
-    // Only restore user if we also have a token (or it's a mock user)
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      // If no token and not a mock user ID, clear state
-      if (!savedToken && !parsed.id?.startsWith('u-') && !['1001', '1002', '101', '102'].includes(parsed.id)) {
-        localStorage.removeItem('user');
-        return null;
-      }
-      return parsed;
+    const savedUser = sessionStorage.getItem('user') || localStorage.getItem('user');
+    const savedToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (savedUser && savedToken) {
+      return JSON.parse(savedUser);
     }
     return null;
   });
@@ -64,114 +130,108 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // -- Data State --
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  // Initialize with ALL mock users so Admin dashboard is populated
-  const [allUsers, setAllUsers] = useState<User[]>([...EXTRA_USERS, MOCK_USER, MOCK_ADMIN]); 
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    // Load saved conversations from localStorage for demo mode
-    const saved = localStorage.getItem('conversations');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   
-  // -- Client-side persist State --
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('cart');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [wishlist, setWishlist] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('wishlist');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [wishlist, setWishlist] = useState<Product[]>([]);
   
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [disputes, setDisputes] = useState<Dispute[]>(MOCK_DISPUTES);
+  const [reviews] = useState<Review[]>([]);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
 
   const [searchQuery, setSearchQuery] = useState('');
 
   // -- Effects --
-  useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { localStorage.setItem('wishlist', JSON.stringify(wishlist)); }, [wishlist]);
-  // Persist conversations to localStorage for demo mode (when no token)
-  useEffect(() => { 
-    const token = localStorage.getItem('token');
-    if (!token && conversations.length > 0 && user) {
-      // Merge with existing conversations from other users
-      const saved = localStorage.getItem('conversations');
-      const existingConversations: Conversation[] = saved ? JSON.parse(saved) : [];
-      // Remove current user's old conversations and add new ones
-      const otherUsersConversations = existingConversations.filter(c => 
-        !c.participants?.includes(user.id)
-      );
-      const allConversations = [...otherUsersConversations, ...conversations];
-      localStorage.setItem('conversations', JSON.stringify(allConversations)); 
+  useEffect(() => {
+    if (!user) {
+      setAllUsers([]);
     }
-  }, [conversations, user]);
+  }, [user]);
 
   const fetchProducts = useCallback(async () => {
     try {
       const { data } = await API.get('/products');
-      // Backend returns { products, total, pages, currentPage }
-      setProducts(data.products || data || PRODUCTS);
-    } catch (error) {
-      console.warn("Backend unreachable, loading mock products.");
-      // Fallback to Mock Data if empty or error
-      setProducts(PRODUCTS);
-      if (user) addToast("Offline Mode: Using local data", "info");
+      const incoming = data.products || data || [];
+      setProducts((Array.isArray(incoming) ? incoming : []).map(normalizeProduct));
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to load products.';
+      setProducts([]);
+      addToast(msg, 'error');
     }
-  }, [addToast, user]);
+  }, [addToast]);
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (!token) {
-      // No token means we're in demo mode - just use empty orders
       setOrders([]);
       return;
     }
     try {
       const { data } = await API.get('/orders/myorders');
       setOrders(data);
-    } catch (error) {
-      console.warn("Backend unreachable, clearing orders.");
-      setOrders([]); 
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to load orders.';
+      setOrders([]);
+      addToast(msg, 'error');
     }
-  }, [user]);
+  }, [user, addToast]);
 
   const fetchConversations = useCallback(async () => {
     if (!user) return;
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (!token) {
-      // No token means we're in demo mode - load from localStorage if available
-      const saved = localStorage.getItem('conversations');
-      if (saved) {
-        const savedConversations: Conversation[] = JSON.parse(saved);
-        // Filter conversations for current user
-        const userConversations = savedConversations.filter(c => 
-          c.participants?.includes(user.id)
-        );
-        if (userConversations.length > 0) {
-          setConversations(userConversations);
-        }
-      }
+      setConversations([]);
       return;
     }
     try {
       const { data } = await API.get('/messages');
       setConversations(data);
-    } catch (error) {
-      console.warn("Backend unreachable, loading from localStorage.");
-      // In case of error, try localStorage first
-      const saved = localStorage.getItem('conversations');
-      if (saved) {
-        const savedConversations: Conversation[] = JSON.parse(saved);
-        const userConversations = savedConversations.filter(c => 
-          c.participants?.includes(user.id)
-        );
-        setConversations(userConversations);
-      } else {
-        setConversations(MOCK_CONVERSATIONS);
-      }
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to load messages.';
+      setConversations([]);
+      addToast(msg, 'error');
     }
-  }, [user]);
+  }, [user, addToast]);
+
+  const fetchUsers = useCallback(async () => {
+    if (!user || user.role !== 'admin') return;
+    try {
+      const { data } = await API.get('/admin/users');
+      const incoming = Array.isArray(data) ? data : [];
+      setAllUsers(incoming.map(normalizeUser));
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to load users.';
+      setAllUsers([]);
+      addToast(msg, 'error');
+    }
+  }, [user, addToast]);
+
+  const fetchCart = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await API.get('/cart');
+      const incoming = Array.isArray(data) ? data : [];
+      setCart(incoming.map(normalizeCartItem));
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to load cart.';
+      setCart([]);
+      addToast(msg, 'error');
+    }
+  }, [user, addToast]);
+
+  const fetchWishlist = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await API.get('/users/wishlist');
+      const incoming = Array.isArray(data) ? data : [];
+      setWishlist(incoming.map(normalizeProduct));
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to load wishlist.';
+      setWishlist([]);
+      addToast(msg, 'error');
+    }
+  }, [user, addToast]);
 
   // Initial Load
   useEffect(() => {
@@ -183,72 +243,58 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (user) {
       fetchOrders();
       fetchConversations();
-      // Poll for messages every 10 seconds
+      fetchCart();
+      fetchWishlist();
+      if (user.role === 'admin') {
+        fetchUsers();
+      }
       const interval = setInterval(fetchConversations, 10000);
       return () => clearInterval(interval);
-    } else {
-      setOrders([]);
-      setConversations([]);
     }
-  }, [user, fetchOrders, fetchConversations]);
+    setOrders([]);
+    setConversations([]);
+    setAllUsers([]);
+    setCart([]);
+    setWishlist([]);
+  }, [user, fetchOrders, fetchConversations, fetchUsers, fetchCart, fetchWishlist]);
 
   // -- Actions --
 
-  const login = async (email: string, password: string = 'password123', role?: UserRole) => {
+  const login = async (email: string, password: string = 'password123') => {
     try {
       const { data } = await API.post('/auth/login', { email, password });
-      // Backend returns { token, user }
       if (data.token) {
-        localStorage.setItem('token', data.token);
+        sessionStorage.setItem('token', data.token);
+        localStorage.removeItem('token');
       }
-      const userData = data.user || data;
-      // Map backend user format to frontend format
-      const mappedUser = {
-        id: userData.id || userData._id,
-        name: userData.fullName || userData.name,
-        email: userData.email,
-        role: userData.role || 'student',
-        avatar: userData.profileImage || userData.avatar || 'https://placehold.co/100x100/e2e8f0/1e293b?text=User'
-      };
+      const mappedUser = normalizeUser(data.user || data);
       setUser(mappedUser);
-      localStorage.setItem('user', JSON.stringify(mappedUser));
+      sessionStorage.setItem('user', JSON.stringify(mappedUser));
+      localStorage.removeItem('user');
       addToast(`Welcome back, ${mappedUser.name}!`);
     } catch (error: any) {
-       // Attempt Register as fallback for demo
-       try {
-         const { data } = await API.post('/auth/register', { 
-            fullName: email.split('@')[0], 
-            email, 
-            password: password || 'password123',
-            phone: '08000000000'
-         });
-         // Backend returns { token, user }
-         if (data.token) {
-           localStorage.setItem('token', data.token);
-         }
-         const userData = data.user || data;
-         const mappedUser = {
-           id: userData.id || userData._id,
-           name: userData.fullName || userData.name,
-           email: userData.email,
-           role: userData.role || 'student',
-           avatar: userData.profileImage || userData.avatar || 'https://placehold.co/100x100/e2e8f0/1e293b?text=User'
-         };
-         setUser(mappedUser);
-         localStorage.setItem('user', JSON.stringify(mappedUser));
-         addToast(`Account created! Welcome, ${mappedUser.name}!`);
-       } catch (regError) {
-         console.warn("Backend unreachable, using mock login.");
-         // Mock Login Fallback
-         const mockUser = MOCK_USER.email === email ? MOCK_USER : 
-                          MOCK_ADMIN.email === email ? MOCK_ADMIN :
-                          allUsers.find(u => u.email === email) || 
-                          { ...MOCK_USER, id: `u-${Date.now()}`, email, name: email.split('@')[0], role: role || 'user' as UserRole };
-         
-         setUser(mockUser);
-         localStorage.setItem('user', JSON.stringify(mockUser));
-         addToast(`Demo Mode: Welcome, ${mockUser.name}!`, 'info');
-       }
+      const msg = error?.response?.data?.message || 'Login failed. Please try again.';
+      addToast(msg, 'error');
+      throw error;
+    }
+  };
+
+  const register = async (fullName: string, email: string, password: string, phone: string) => {
+    try {
+      const { data } = await API.post('/auth/register', { fullName, email, password, phone });
+      if (data.token) {
+        sessionStorage.setItem('token', data.token);
+        localStorage.removeItem('token');
+      }
+      const mappedUser = normalizeUser(data.user || data);
+      setUser(mappedUser);
+      sessionStorage.setItem('user', JSON.stringify(mappedUser));
+      localStorage.removeItem('user');
+      addToast(`Account created! Welcome, ${mappedUser.name}!`);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Registration failed. Please try again.';
+      addToast(msg, 'error');
+      throw error;
     }
   };
 
@@ -260,81 +306,136 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setOrders([]);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-    // Don't clear conversations from localStorage - they persist per user ID
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
     addToast('Logged out successfully', 'info');
   };
 
-  const updateUser = (updates: Partial<User>) => {
-    setUser(prev => prev ? { ...prev, ...updates } : null);
-    setAllUsers(prev => prev.map(u => u.id === user?.id ? { ...u, ...updates } : u));
-    addToast('Profile updated successfully');
+  const updateUser = async (updates: Partial<User>) => {
+    try {
+      const payload = {
+        fullName: updates.fullName || updates.name,
+        phone: updates.phone,
+        profileImage: updates.profileImage || updates.avatar,
+      };
+      const { data } = await API.put('/users/profile', payload);
+      const mappedUser = normalizeUser(data.user || data);
+      setUser(mappedUser);
+      sessionStorage.setItem('user', JSON.stringify(mappedUser));
+      localStorage.removeItem('user');
+      setAllUsers(prev => prev.map(u => u.id === mappedUser.id ? { ...u, ...mappedUser } : u));
+      addToast('Profile updated successfully');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to update profile.';
+      addToast(msg, 'error');
+      throw error;
+    }
   };
 
-  const addToCart = (product: Product, quantity: number = 1) => {
+  const addToCart = async (product: Product, quantity: number = 1) => {
     if (user?.role === 'admin') {
       addToast('Admins cannot shop.', 'error');
       return;
     }
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item);
-      }
-      addToast(`${product.title} added to cart`);
-      return [...prev, { ...product, quantity }];
-    });
-  };
-
-  const updateQuantity = (productId: string, quantity: number) => {
-    setCart(prev => prev.map(item => item.id === productId ? { ...item, quantity: Math.max(1, quantity) } : item));
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.id !== productId));
-  };
-
-  const clearCart = () => setCart([]);
-
-  const addProduct = async (product: Product) => {
     try {
-      let imageUrl = product.images?.[0] || '';
-      if (imageUrl && imageUrl.startsWith('data:')) {
-          const res = await fetch(imageUrl);
-          const blob = await res.blob();
-          const formData = new FormData();
-          formData.append('image', blob, 'product.jpg');
-          
-          const uploadRes = await API.post('/upload', formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-          });
-          imageUrl = uploadRes.data.url;
-      }
-
-      const { data } = await API.post('/products', { ...product, image: imageUrl });
-      setProducts(prev => [data, ...prev]);
-      addToast('Product listed successfully!');
-    } catch (error) {
-      console.warn("Backend unavailable, adding locally");
-      setProducts(prev => [product, ...prev]);
-      addToast('Product listed (Demo Mode)');
+      await API.post('/cart/add', { productId: product.id, quantity });
+      await fetchCart();
+      addToast(`${product.title} added to cart`);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to add to cart.';
+      addToast(msg, 'error');
+      throw error;
     }
   };
 
-  const updateProduct = (productId: string, updates: Partial<Product>) => {
-    setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));
-    addToast('Product updated');
+  const updateQuantity = async (productId: string, quantity: number) => {
+    try {
+      await API.post('/cart/remove', { productId });
+      if (quantity > 0) {
+        await API.post('/cart/add', { productId, quantity });
+      }
+      await fetchCart();
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to update cart.';
+      addToast(msg, 'error');
+      throw error;
+    }
   };
 
-  const deleteProduct = (productId: string) => {
-    setProducts(prev => prev.filter(p => p.id !== productId));
-    addToast('Product deleted');
+  const removeFromCart = async (productId: string) => {
+    try {
+      await API.post('/cart/remove', { productId });
+      await fetchCart();
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to remove from cart.';
+      addToast(msg, 'error');
+      throw error;
+    }
   };
 
-  const toggleWishlist = (product: Product) => {
-    setWishlist(prev => {
-      const exists = prev.find(p => p.id === product.id);
-      return exists ? prev.filter(p => p.id !== product.id) : [...prev, product];
-    });
+  const clearCart = async () => {
+    try {
+      await Promise.all(cart.map((item) => API.post('/cart/remove', { productId: item.id })));
+      setCart([]);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to clear cart.';
+      addToast(msg, 'error');
+      throw error;
+    }
+  };
+
+  const addProduct = async (product: Product) => {
+    try {
+      const payload = {
+        ...product,
+        images: product.images || [],
+      };
+      const { data } = await API.post('/products', payload);
+      const created = data?.product || data;
+      setProducts(prev => [normalizeProduct(created), ...prev]);
+      addToast('Product listed successfully!');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to list product.';
+      addToast(msg, 'error');
+      throw error;
+    }
+  };
+
+  const updateProduct = async (productId: string, updates: Partial<Product>) => {
+    try {
+      const { data } = await API.put(`/products/${productId}`, updates);
+      const updated = data?.product || data;
+      setProducts(prev => prev.map(p => p.id === productId ? normalizeProduct(updated) : p));
+      addToast('Product updated');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to update product.';
+      addToast(msg, 'error');
+      throw error;
+    }
+  };
+
+  const deleteProduct = async (productId: string) => {
+    try {
+      await API.delete(`/products/${productId}`);
+      setProducts(prev => prev.filter(p => p.id !== productId));
+      addToast('Product deleted');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to delete product.';
+      addToast(msg, 'error');
+      throw error;
+    }
+  };
+
+  const toggleWishlist = async (product: Product) => {
+    try {
+      const { data } = await API.post('/users/wishlist/toggle', { productId: product.id });
+      const incoming = Array.isArray(data?.wishlist) ? data.wishlist : [];
+      setWishlist(incoming.map(normalizeProduct));
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to update wishlist.';
+      addToast(msg, 'error');
+      throw error;
+    }
   };
 
   const checkout = async () => {
@@ -344,7 +445,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         orderItems: cart.map(item => ({
             product: item.id,
             title: item.title,
-            image: item.image,
+          image: item.images?.[0] || '',
             price: item.price,
             quantity: item.quantity
         })),
@@ -354,118 +455,67 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       };
 
       await API.post('/orders', orderData);
-      setCart([]);
+      await clearCart();
       addToast('Order placed successfully!');
     } catch (error) {
-      setCart([]);
-      addToast('Order placed (Demo Mode)!', 'success');
+      addToast('Failed to place order.', 'error');
     }
   };
 
-  const addReview = (productId: string, rating: number, comment: string) => {
+  const addReview = async (productId: string, rating: number, comment: string) => {
     if (!user) return;
-    const newReview: Review = {
-        id: `r-${Date.now()}`,
-        productId,
-        userId: user.id,
-        userName: user.name,
-        rating,
-        comment,
-        date: new Date().toLocaleDateString()
-    };
-    
-    setReviews(prev => [newReview, ...prev]);
-    
-    // Update product rating
-    setProducts(prev => prev.map(p => {
-        if (p.id === productId) {
-             // Calculate new average
-             const productReviews = [newReview, ...reviews.filter(r => r.productId === productId)];
-             const total = productReviews.reduce((sum, r) => sum + r.rating, 0);
-             const avg = Math.round((total / productReviews.length) * 10) / 10;
-             return { ...p, rating: avg };
-        }
-        return p;
-    }));
-    
-    addToast('Review submitted!');
+    try {
+      const { data } = await API.post(`/products/${productId}/rating`, { rating, review: comment });
+      const updated = data?.product || data;
+      setProducts(prev => prev.map(p => p.id === productId ? normalizeProduct(updated) : p));
+      addToast('Review submitted!');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to submit review.';
+      addToast(msg, 'error');
+      throw error;
+    }
   };
 
   const sendMessage = async (receiverId: string, content: string, productId?: string) => {
     if (!user) return;
-    
     try {
-        await API.post('/messages', { receiverId, content, productId });
-        fetchConversations();
-    } catch (error) {
-        // Fallback for demo: Update local state
-        setConversations(prev => {
-            const existing = prev.find(c => 
-              c.participants.includes(user.id) && 
-              c.participants.includes(receiverId) && 
-              (!productId || c.productId === productId)
-            );
-            const newMessage = {
-                id: `m-${Date.now()}`,
-                senderId: user.id,
-                content,
-                timestamp: new Date().toISOString(),
-                read: false
-            };
-
-            if (existing) {
-                return prev.map(c => c.id === existing.id ? {
-                    ...c,
-                    messages: [...c.messages, newMessage],
-                    updatedAt: new Date().toISOString()
-                } : c);
-            }
-            return [...prev, {
-                id: `c-${Date.now()}`,
-                participants: [user.id, receiverId],
-                messages: [newMessage],
-                productId,
-                updatedAt: new Date().toISOString()
-            }];
-        });
-        // addToast('Message sent (Demo Mode)', 'success');
+      await API.post('/messages', { receiverId, content, productId });
+      fetchConversations();
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to send message.';
+      addToast(msg, 'error');
+      throw error;
     }
   };
 
   const markAsRead = async (conversationId: string) => {
     try {
-        await API.put(`/messages/${conversationId}/read`);
-        setConversations(prev => prev.map(c => {
-            if (c.id === conversationId) {
-                return {
-                    ...c,
-                    messages: c.messages.map(m => ({ ...m, read: true }))
-                };
-            }
-            return c;
-        }));
-    } catch (error) {
-        setConversations(prev => prev.map(c => {
-            if (c.id === conversationId) {
-                return {
-                    ...c,
-                    messages: c.messages.map(m => ({ ...m, read: true }))
-                };
-            }
-            return c;
-        }));
+      await API.put(`/messages/${conversationId}/read`);
+      setConversations(prev => prev.map(c => {
+        if (c.id === conversationId) {
+          return {
+            ...c,
+            messages: c.messages.map(m => ({ ...m, read: true }))
+          };
+        }
+        return c;
+      }));
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to mark messages as read.';
+      addToast(msg, 'error');
+      throw error;
     }
   };
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     try {
-        const { data } = await API.put(`/orders/${orderId}/status`, { status });
-        setOrders(prev => prev.map(o => o.id === orderId ? data : o));
-        addToast(`Order updated to ${status}`);
-    } catch (error) {
-        // Fallback for demo
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, deliveredAt: status === 'completed' ? new Date().toISOString() : o.deliveredAt } : o));
-        addToast(`Order updated (Demo Mode)`);
+      const { data } = await API.put(`/orders/${orderId}/status`, { status });
+      setOrders(prev => prev.map(o => o.id === orderId ? data : o));
+      addToast(`Order updated to ${status}`);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to update order.';
+      addToast(msg, 'error');
+      throw error;
     }
   };
 
@@ -489,16 +539,30 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const targetUser = allUsers.find(u => u.id === userId);
     if (targetUser) {
         setUser(targetUser);
-        localStorage.setItem('user', JSON.stringify(targetUser));
+      sessionStorage.setItem('user', JSON.stringify(targetUser));
+      localStorage.removeItem('user');
         addToast(`Now impersonating ${targetUser.name}`);
         // Refresh page/state will happen automatically due to routing or use a reload if needed
         window.location.href = '/'; 
     }
   };
 
-  const updateProductStatus = (productId: string, status: 'approved' | 'rejected') => {
-    setProducts(prev => prev.map(p => p.id === productId ? { ...p, status } : p));
-    addToast(`Product ${status}`);
+  const updateProductStatus = async (productId: string, status: 'approved' | 'rejected') => {
+    try {
+      if (status === 'approved') {
+        const { data } = await API.put(`/admin/products/${productId}/approve`);
+        const updated = data?.product || data;
+        setProducts(prev => prev.map(p => p.id === productId ? normalizeProduct(updated) : p));
+      } else {
+        await API.delete(`/admin/products/${productId}/reject`);
+        setProducts(prev => prev.filter(p => p.id !== productId));
+      }
+      addToast(`Product ${status}`);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to update product status.';
+      addToast(msg, 'error');
+      throw error;
+    }
   };
 
   const updateDisputeStatus = (id: string, status: 'resolved' | 'dismissed') => {
@@ -509,7 +573,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <StoreContext.Provider value={{
       user, allUsers, products, cart, wishlist, orders, reviews, conversations, disputes, searchQuery, setSearchQuery,
-      login, logout, updateUser, addToCart, updateQuantity, removeFromCart, clearCart,
+      login, register, logout, updateUser, addToCart, updateQuantity, removeFromCart, clearCart,
       addProduct, updateProduct, deleteProduct, toggleWishlist, checkout, addReview,
       sendMessage, markAsRead, updateUserStatus, impersonateUser, updateProductStatus,
       updateOrderStatus, updateDisputeStatus, requestReturn

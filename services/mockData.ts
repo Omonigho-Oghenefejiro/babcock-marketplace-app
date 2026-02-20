@@ -1,4 +1,4 @@
-import { Product, User, Order, Review, Conversation, Message, Dispute } from '../types';
+import { Product, User, Conversation, Dispute } from '../types';
 
 export const PRODUCTS: Product[] = [
   {
@@ -10,6 +10,7 @@ export const PRODUCTS: Product[] = [
     images: ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
     seller: {
       id: '101',
+      name: 'John Seller',
       fullName: 'John Seller',
       email: 'seller@babcock.edu.ng',
       phone: '08012345678',
@@ -31,6 +32,7 @@ export const PRODUCTS: Product[] = [
     images: ['https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
     seller: {
       id: '101',
+      name: 'John Seller',
       fullName: 'John Seller',
       email: 'seller@babcock.edu.ng',
       phone: '08012345678',
@@ -52,6 +54,7 @@ export const PRODUCTS: Product[] = [
     images: ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
     seller: {
       id: '101',
+      name: 'John Seller',
       fullName: 'John Seller',
       email: 'seller@babcock.edu.ng',
       phone: '08012345678',
@@ -73,6 +76,7 @@ export const PRODUCTS: Product[] = [
     images: ['https://images.unsplash.com/photo-1587145820266-a5951ee6f620?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
     seller: {
       id: '102',
+      name: 'Sarah Smith',
       fullName: 'Sarah Smith',
       email: 'sarah@babcock.edu.ng',
       phone: '08012345681',
@@ -94,6 +98,7 @@ export const PRODUCTS: Product[] = [
     images: ['https://images.unsplash.com/photo-1507473885765-e6ed057f782c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
     seller: {
       id: '103',
+      name: 'Michael Chen',
       fullName: 'Michael Chen',
       email: 'michael@babcock.edu.ng',
       phone: '08012345682',
@@ -115,6 +120,7 @@ export const PRODUCTS: Product[] = [
     images: ['https://images.unsplash.com/photo-1602143407151-7111542de6e8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'],
     seller: {
       id: '104',
+      name: 'Emma Wilson',
       fullName: 'Emma Wilson',
       email: 'emma@babcock.edu.ng',
       phone: '08012345683',

@@ -1,118 +1,238 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
-import { chatWithAssistant } from '../services/geminiService';
+import { useEffect, useRef, useState } from 'react';
+import { MessageSquare, Send, X } from 'lucide-react';
+import { generateAssistantReply, type AssistantMessage } from '../services/geminiService';
+
+const tokens = {
+  green: '#1B4332',
+  greenMid: '#2D6A4F',
+  greenLight: '#D8F3DC',
+  cream: '#FAF7F2',
+  ink: '#1A1A1A',
+  muted: '#6B7280',
+  border: '#E8E2D9',
+  amber: '#F4A226',
+};
 
 const AIAssistant = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<{role: 'user' | 'model', text: string}[]>([
-    { role: 'model', text: 'Hi! I\'m the Babcock Marketplace Assistant. Need help finding a hostel fan, textbooks, or food?' }
-  ]);
+  const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<AssistantMessage[]>([
+    {
+      role: 'model',
+      text: 'Hi! Ask me about listings, prices, or how to use the marketplace.',
+    },
+  ]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const listRef = useRef<HTMLDivElement>(null);
+  const hasKey = Boolean(import.meta.env.VITE_GEMINI_API_KEY);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isOpen]);
+    if (!listRef.current) return;
+    listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [messages, open]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
-    
-    const userMsg = input;
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    const trimmed = input.trim();
+    if (!trimmed || isLoading) return;
+
+    const nextMessages: AssistantMessage[] = [...messages, { role: 'user', text: trimmed }];
+    setMessages(nextMessages);
     setInput('');
     setIsLoading(true);
 
-    const response = await chatWithAssistant(userMsg, messages.map(m => m.text));
-    
-    setMessages(prev => [...prev, { role: 'model', text: response }]);
-    setIsLoading(false);
+    try {
+      if (!hasKey) {
+        throw new Error('Missing VITE_GEMINI_API_KEY');
+      }
+      const reply = await generateAssistantReply(nextMessages);
+      setMessages((prev) => [...prev, { role: 'model', text: reply }]);
+    } catch (error: any) {
+      const msg = error?.message || 'Failed to get a response.';
+      setMessages((prev) => [...prev, { role: 'model', text: `Error: ${msg}` }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <>
-      {/* Floating Button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all z-40 ${isOpen ? 'hidden' : 'flex items-center space-x-2'}`}
-      >
-        <Sparkles className="h-6 w-6" />
-        <span className="font-medium hidden md:inline">AI Assistant</span>
-      </button>
-
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 max-w-[calc(100vw-3rem)] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 border border-gray-200 animate-fade-in-up">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-900 to-blue-800 p-4 flex justify-between items-center text-white">
-            <div className="flex items-center space-x-2">
-              <div className="bg-white/20 p-2 rounded-full">
-                <Sparkles className="h-5 w-5 text-yellow-300" />
+    <div style={{ position: 'fixed', right: 22, bottom: 22, zIndex: 80 }}>
+      {open && (
+        <div
+          style={{
+            width: 320,
+            height: 420,
+            background: '#fff',
+            border: `1.5px solid ${tokens.border}`,
+            borderRadius: 16,
+            boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            marginBottom: 12,
+            fontFamily: "'Instrument Sans', sans-serif",
+          }}
+        >
+          <div
+            style={{
+              padding: '12px 14px',
+              background: tokens.green,
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  background: 'rgba(255,255,255,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                }}
+              >
+                AI
               </div>
-              <div>
-                <h3 className="font-bold">Campus Assistant</h3>
-                <p className="text-xs text-blue-200">Powered by Gemini</p>
-              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Marketplace Assistant</div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="hover:bg-white/10 p-1 rounded">
-              <X className="h-5 w-5" />
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+              }}
+              aria-label="Close assistant"
+            >
+              <X size={18} />
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                  msg.role === 'user' 
-                    ? 'bg-blue-600 text-white rounded-br-none' 
-                    : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'
-                }`}>
-                  {msg.text}
-                </div>
+          <div
+            ref={listRef}
+            style={{
+              flex: 1,
+              padding: 12,
+              background: tokens.cream,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}
+          >
+            {messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                style={{
+                  alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                  background: message.role === 'user' ? tokens.green : '#fff',
+                  color: message.role === 'user' ? '#fff' : tokens.ink,
+                  border: message.role === 'user' ? 'none' : `1px solid ${tokens.border}`,
+                  borderRadius: 12,
+                  padding: '8px 10px',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.5,
+                  maxWidth: '80%',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {message.text}
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
-                  </div>
-                </div>
+              <div
+                style={{
+                  alignSelf: 'flex-start',
+                  background: '#fff',
+                  border: `1px solid ${tokens.border}`,
+                  borderRadius: 12,
+                  padding: '8px 10px',
+                  fontSize: '0.82rem',
+                  color: tokens.muted,
+                }}
+              >
+                Thinking...
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <div className="p-4 bg-white border-t border-gray-100">
-            <div className="flex items-center space-x-2">
+          <div style={{ padding: 10, background: '#fff', borderTop: `1px solid ${tokens.border}` }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               <input
-                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask about products..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={hasKey ? 'Ask about listings, pricing, or categories...' : 'Add VITE_GEMINI_API_KEY to enable'}
+                style={{
+                  flex: 1,
+                  border: `1.5px solid ${tokens.border}`,
+                  borderRadius: 10,
+                  padding: '8px 10px',
+                  fontSize: '0.82rem',
+                  outline: 'none',
+                  fontFamily: "'Instrument Sans', sans-serif",
+                }}
+                disabled={!hasKey}
               />
-              <button 
+              <button
                 onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{
+                  background: tokens.green,
+                  border: 'none',
+                  color: '#fff',
+                  borderRadius: 10,
+                  width: 38,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+                disabled={!hasKey || isLoading}
+                aria-label="Send message"
               >
-                <Send className="h-5 w-5" />
+                <Send size={16} />
               </button>
             </div>
+            {!hasKey && (
+              <div style={{ marginTop: 6, fontSize: '0.7rem', color: tokens.muted }}>
+                Add VITE_GEMINI_API_KEY in your Vite env to enable responses.
+              </div>
+            )}
           </div>
         </div>
       )}
-    </>
+
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: '50%',
+          border: 'none',
+          background: tokens.green,
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 10px 24px rgba(27,67,50,0.25)',
+          cursor: 'pointer',
+        }}
+        aria-label="Open assistant"
+      >
+        <MessageSquare size={22} />
+      </button>
+    </div>
   );
 };
 

@@ -30,6 +30,7 @@ export interface Product {
   title: string;
   description: string;
   price: number;
+  originalPrice?: number;
   category: string;
   images: string[];
   seller: User;

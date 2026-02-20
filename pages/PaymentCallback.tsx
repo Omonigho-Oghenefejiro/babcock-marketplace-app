@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Loader, CreditCard, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
@@ -8,8 +8,7 @@ import { Button } from '../components/ui/button';
 
 const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { cart, clearCart, user } = useStore();
+  const { cart, clearCart } = useStore();
   const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
   const processedRef = useRef(false);
 
@@ -30,7 +29,7 @@ const PaymentCallback = () => {
             orderItems: cart.map(item => ({
                 product: item.id,
                 title: item.title,
-                image: item.image,
+              image: item.images?.[0] || '',
                 price: item.price,
                 quantity: item.quantity
             })),
