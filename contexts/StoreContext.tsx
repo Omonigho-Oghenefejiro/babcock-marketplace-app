@@ -267,6 +267,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         sessionStorage.setItem('token', data.token);
         localStorage.removeItem('token');
       }
+      if (data.refreshToken) {
+        sessionStorage.setItem('refreshToken', data.refreshToken);
+        localStorage.removeItem('refreshToken');
+      }
       const mappedUser = normalizeUser(data.user || data);
       setUser(mappedUser);
       sessionStorage.setItem('user', JSON.stringify(mappedUser));
@@ -286,6 +290,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         sessionStorage.setItem('token', data.token);
         localStorage.removeItem('token');
       }
+      if (data.refreshToken) {
+        sessionStorage.setItem('refreshToken', data.refreshToken);
+        localStorage.removeItem('refreshToken');
+      }
       const mappedUser = normalizeUser(data.user || data);
       setUser(mappedUser);
       sessionStorage.setItem('user', JSON.stringify(mappedUser));
@@ -299,6 +307,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const logout = () => {
+    const refreshToken = sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      API.post('/auth/logout', { refreshToken }).catch(() => undefined);
+    }
+
     setUser(null);
     setCart([]);
     setWishlist([]);
@@ -306,8 +319,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setOrders([]);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('token');
+    sessionStorage.removeItem('refreshToken');
     addToast('Logged out successfully', 'info');
   };
 

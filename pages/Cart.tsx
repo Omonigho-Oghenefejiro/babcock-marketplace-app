@@ -8,6 +8,7 @@ import {
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
 import API from '../services/api';
+import { isAllowedExternalRedirectUrl } from '../lib/redirect';
 
 /* ── Tokens ── */
 const t = {
@@ -40,10 +41,11 @@ const Cart = () => {
     setIsProcessing(true);
     try {
       const { data } = await API.post('/payment/initialize', { email: user.email, amount: total });
-      if (data.authorization_url) {
-        window.location.href = data.authorization_url;
+      const redirectUrl = data.authorization_url || data.paymentUrl;
+      if (redirectUrl && isAllowedExternalRedirectUrl(redirectUrl)) {
+        window.location.assign(redirectUrl);
       } else {
-        addToast('Failed to initialize payment', 'error');
+        addToast('Blocked unsafe redirect URL', 'error');
         setIsProcessing(false);
       }
     } catch {

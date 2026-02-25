@@ -1,11 +1,12 @@
 const express = require('express');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const adminCheck = require('../middleware/adminCheck');
 
 const router = express.Router();
 
 // Add to cart
-router.post('/add', auth, async (req, res) => {
+router.post('/add', auth, adminCheck, async (req, res) => {
   try {
     const { productId, quantity } = req.body;
 
@@ -28,7 +29,7 @@ router.post('/add', auth, async (req, res) => {
 });
 
 // Remove from cart
-router.post('/remove', auth, async (req, res) => {
+router.post('/remove', auth, adminCheck, async (req, res) => {
   try {
     const { productId } = req.body;
 
@@ -44,7 +45,7 @@ router.post('/remove', auth, async (req, res) => {
 });
 
 // Get cart
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, adminCheck, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).populate('cart.productId');
 

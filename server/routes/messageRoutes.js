@@ -1,11 +1,12 @@
 const express = require('express');
 const Message = require('../models/Message');
 const auth = require('../middleware/auth');
+const adminCheck = require('../middleware/adminCheck');
 
 const router = express.Router();
 
 // Get all conversations for current user (grouped by other participant)
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, adminCheck, async (req, res) => {
   try {
     const userId = req.user.userId;
     
@@ -61,7 +62,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Send message (matches frontend POST /messages)
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, adminCheck, async (req, res) => {
   try {
     const { receiverId, productId, content } = req.body;
 
@@ -86,7 +87,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Send message (legacy route)
-router.post('/send', auth, async (req, res) => {
+router.post('/send', auth, adminCheck, async (req, res) => {
   try {
     const { receiverId, productId, content } = req.body;
 
@@ -111,7 +112,7 @@ router.post('/send', auth, async (req, res) => {
 });
 
 // Get messages between two users
-router.get('/conversation/:userId', auth, async (req, res) => {
+router.get('/conversation/:userId', auth, adminCheck, async (req, res) => {
   try {
     const messages = await Message.find({
       $or: [
@@ -130,7 +131,7 @@ router.get('/conversation/:userId', auth, async (req, res) => {
 });
 
 // Mark as read
-router.put('/:id/read', auth, async (req, res) => {
+router.put('/:id/read', auth, adminCheck, async (req, res) => {
   try {
     const message = await Message.findByIdAndUpdate(
       req.params.id,

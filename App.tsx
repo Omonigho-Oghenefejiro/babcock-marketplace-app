@@ -16,6 +16,7 @@ import UserDashboard from './pages/UserDashboard.tsx';
 import SellItem from './pages/SellItem.tsx';
 import Messages from './pages/Messages.tsx';
 import PaymentCallback from './pages/PaymentCallback.tsx';
+import PaymentSimulation from './pages/PaymentSimulation.tsx';
 import AIAssistant from './components/AIAssistant';
 
 const ROUTES = [
@@ -30,6 +31,7 @@ const ROUTES = [
   { path: '/dashboard', element: <UserDashboard /> },
   { path: '/sell', element: <SellItem /> },
   { path: '/messages', element: <Messages /> },
+  { path: '/pay', element: <PaymentSimulation /> },
   { path: '/payment/callback', element: <PaymentCallback /> },
 ];
 

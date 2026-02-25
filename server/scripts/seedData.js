@@ -2,6 +2,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');
+const logger = require('../utils/logger');
 
 const seedDatabase = async () => {
   try {
@@ -10,12 +11,12 @@ const seedDatabase = async () => {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log('MongoDB connected for seeding');
+    logger.info('MongoDB connected for seeding');
 
     // Clear existing data
     await User.deleteMany({});
     await Product.deleteMany({});
-    console.log('Cleared existing data');
+    logger.info('Cleared existing data');
 
     // Create sample users
     const users = await User.insertMany([
@@ -44,7 +45,7 @@ const seedDatabase = async () => {
         isVerified: true,
       },
     ]);
-    console.log(`Created ${users.length} users`);
+    logger.info(`Created ${users.length} users`);
 
     // Create sample products
     const products = await Product.insertMany([
@@ -159,12 +160,12 @@ const seedDatabase = async () => {
         inStock: true,
       },
     ]);
-    console.log(`Created ${products.length} products`);
+    logger.info(`Created ${products.length} products`);
 
-    console.log('Database seeded successfully!');
+    logger.info('Database seeded successfully!');
     process.exit(0);
   } catch (err) {
-    console.error('Error seeding database:', err);
+    logger.error('Error seeding database', { error: err.message, stack: err.stack });
     process.exit(1);
   }
 };

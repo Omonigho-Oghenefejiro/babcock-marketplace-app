@@ -42,6 +42,10 @@ MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_secret_key
 PAYSTACK_SECRET_KEY=your_paystack_key
 CLOUDINARY_CLOUD_NAME=your_name
+CORS_ALLOWED_ORIGINS=https://your-production-domain.com
+VITE_REDIRECT_ALLOWLIST=https://checkout.paystack.com
+REFRESH_TOKEN_EXPIRES_DAYS=30
+MAX_REFRESH_TOKENS_PER_USER=5
 ```
 
 ### 4. Run the Application

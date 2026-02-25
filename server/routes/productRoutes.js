@@ -2,6 +2,7 @@ const express = require('express');
 const Product = require('../models/Product');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const adminCheck = require('../middleware/adminCheck');
 
 const router = express.Router();
 
@@ -61,7 +62,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create product
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, adminCheck, async (req, res) => {
   try {
     const { title, description, price, category, images, condition } = req.body;
 
@@ -87,7 +88,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Update product
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, adminCheck, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
 
@@ -109,7 +110,7 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // Delete product
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, adminCheck, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
 
@@ -130,7 +131,7 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 // Add rating/review
-router.post('/:id/rating', auth, async (req, res) => {
+router.post('/:id/rating', auth, adminCheck, async (req, res) => {
   try {
     const { rating, review } = req.body;
 

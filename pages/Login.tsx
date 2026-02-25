@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Star } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
+import { getSafeInternalRedirectPath } from '../lib/redirect';
 
 /* ── Tokens ── */
 const t = {
@@ -81,7 +82,7 @@ const Login = () => {
   const navigate  = useNavigate();
   const location  = useLocation();
 
-  const from    = (location.state as any)?.from    || '/';
+  const from    = getSafeInternalRedirectPath((location.state as any)?.from, '/');
   const message = (location.state as any)?.message;
 
   const handleSubmit = async (e: React.FormEvent) => {

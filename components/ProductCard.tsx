@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, ShoppingCart, Star, ArrowUpRight } from 'lucide-react';
+import { Heart, ShoppingCart, Star, ArrowUpRight, CreditCard } from 'lucide-react';
 import { Product } from '../types';
 import { useStore } from '../contexts/StoreContext';
 import { Link, useNavigate } from 'react-router-dom';
@@ -90,17 +90,38 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
             <p style={{ fontSize: '0.7rem', color: t.muted, marginBottom: 6 }}>{product.category}</p>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '0.9rem', color: t.green }}>₦{product.price.toLocaleString()}</span>
-              <button
-                onClick={handleAddToCart}
-                style={{
-                  background: t.green, color: '#fff',
-                  border: 'none', borderRadius: 8, padding: '5px 10px',
-                  fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
-                  fontFamily: "'Instrument Sans', sans-serif",
-                }}
-              >
-                Add
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  onClick={handleAddToCart}
+                  style={{
+                    background: t.green, color: '#fff',
+                    border: 'none', borderRadius: 8, padding: '5px 10px',
+                    fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
+                    fontFamily: "'Instrument Sans', sans-serif",
+                  }}
+                >
+                  Add
+                </button>
+                <Link
+                  to="/pay"
+                  state={{ product }}
+                  style={{
+                    background: t.greenPale,
+                    color: t.greenMid,
+                    border: `1px solid ${t.greenLight}`,
+                    borderRadius: 8,
+                    padding: '4px 6px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textDecoration: 'none',
+                  }}
+                  aria-label="Pay now"
+                  title="Pay now"
+                >
+                  <CreditCard size={13} />
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -294,6 +315,39 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
             {cartPop ? 'Added ✓' : 'Add'}
           </button>
         </div>
+
+        <Link to="/pay" state={{ product }} style={{ textDecoration: 'none', display: 'block', marginTop: 10 }}>
+          <button
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              background: t.greenPale,
+              color: t.greenMid,
+              border: `1.5px solid ${t.greenLight}`,
+              borderRadius: 10,
+              padding: '9px 12px',
+              cursor: 'pointer',
+              fontFamily: "'Instrument Sans', sans-serif",
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = t.greenLight;
+              e.currentTarget.style.color = t.green;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = t.greenPale;
+              e.currentTarget.style.color = t.greenMid;
+            }}
+          >
+            <CreditCard size={14} />
+            Pay Now
+          </button>
+        </Link>
       </div>
     </div>
   );

@@ -2,11 +2,12 @@ const express = require('express');
 const axios = require('axios');
 const Order = require('../models/Order');
 const auth = require('../middleware/auth');
+const adminCheck = require('../middleware/adminCheck');
 
 const router = express.Router();
 
 // Initialize payment
-router.post('/initialize', auth, async (req, res) => {
+router.post('/initialize', auth, adminCheck, async (req, res) => {
   try {
     const { items, totalAmount, email, shippingAddress } = req.body;
 
@@ -84,7 +85,7 @@ router.get('/verify/:reference', async (req, res) => {
 });
 
 // Get order
-router.get('/order/:orderId', auth, async (req, res) => {
+router.get('/order/:orderId', auth, adminCheck, async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId).populate('items.product');
 
