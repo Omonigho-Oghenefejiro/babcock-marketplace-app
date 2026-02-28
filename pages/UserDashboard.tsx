@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -5,6 +6,7 @@ import {
   Tag, ArrowRight, Clock, CheckCircle, TrendingUp
 } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
+import API from '../services/api';
 
 /* ── Tokens ── */
 const t = {
@@ -32,11 +34,30 @@ const Fade = ({ children, delay = 0 }: { children: React.ReactNode; delay?: numb
 );
 
 const UserDashboard = () => {
-  const { user, orders = [], products, wishlist } = useStore();
+  const { user, orders = [], products, wishlist, updateUser } = useStore();
+  const [myListings, setMyListings] = useState<any[]>([]);
 
-  const myListings     = products?.filter(p => p.seller?.id === user?.id) || [];
+  useEffect(() => {
+    const fetchMyListings = async () => {
+      if (!user || user.role === 'admin') {
+        setMyListings([]);
+        return;
+      }
+
+      try {
+        const { data } = await API.get('/products/mine');
+        const incoming = Array.isArray(data) ? data : [];
+        setMyListings(incoming);
+      } catch {
+        setMyListings(products?.filter(p => p.seller?.id === user?.id) || []);
+      }
+    };
+
+    fetchMyListings();
+  }, [user, products]);
+
   const recentOrders   = orders?.slice(0, 5) || [];
-  const totalSpent     = orders?.reduce((acc: number, o: any) => acc + (o.totalPrice || 0), 0) || 0;
+  const totalSpent     = orders?.reduce((acc: number, o: any) => acc + Number(o.totalAmount ?? o.totalPrice ?? o.total ?? 0), 0) || 0;
 
   const stats = [
     {
@@ -63,6 +84,7 @@ const UserDashboard = () => {
 
   const quickActions = [
     { label: 'Browse Shop',     icon: ShoppingBag,    to: '/shop',     desc: 'Find what you need'        },
+    { label: 'Purchased Items', icon: Package,        to: '/purchased-items', desc: 'Rate bought products' },
     { label: 'Sell an Item',    icon: Tag,            to: '/sell',     desc: 'List in 2 minutes'         },
     { label: 'My Wishlist',     icon: Heart,          to: '/wishlist', desc: `${wishlist.length} saved`  },
     { label: 'Messages',        icon: MessageSquare,  to: '/messages', desc: 'Chat with sellers'         },
@@ -70,8 +92,11 @@ const UserDashboard = () => {
 
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
     pending:   { label: 'Pending',    color: '#92400E', bg: '#FEF3C7', icon: Clock        },
+    processing:{ label: 'Processing', color: '#1E40AF', bg: '#DBEAFE', icon: Package      },
+    shipped:   { label: 'Shipped',    color: '#1D4ED8', bg: '#DBEAFE', icon: Package      },
     paid:      { label: 'Paid',       color: '#065F46', bg: '#D1FAE5', icon: CheckCircle  },
     delivered: { label: 'Delivered',  color: '#1E40AF', bg: '#DBEAFE', icon: Package      },
+    completed: { label: 'Completed',  color: '#065F46', bg: '#D1FAE5', icon: CheckCircle  },
   };
 
   const firstName = user?.name?.split(' ')[0] || 'there';
@@ -101,8 +126,12 @@ const UserDashboard = () => {
                 fontFamily: "'Syne', sans-serif", fontWeight: 800,
                 fontSize: '1.4rem', color: t.ink, flexShrink: 0,
                 boxShadow: '0 0 0 3px rgba(244,162,38,0.3)',
+                overflow: 'hidden',
               }}>
-                {user?.name?.[0]?.toUpperCase() ?? 'U'}
+                {user?.profileImage
+                  ? <img src={user.profileImage} alt={user.name || 'Profile'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : (user?.name?.[0]?.toUpperCase() ?? 'U')
+                }
               </div>
               <div>
                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', marginBottom: 3 }}>
@@ -131,6 +160,50 @@ const UserDashboard = () => {
                   Babcock Verified
                 </span>
               </div>
+
+              <Link
+                to="/purchased-items"
+                style={{
+                  background: 'rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: 12,
+                  padding: '10px 16px',
+                  color: '#fff',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                Purchased Items
+              </Link>
+
+              <label style={{
+                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 12, padding: '10px 16px', color: 'rgba(255,255,255,0.8)',
+                fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+              }}>
+                Upload Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onloadend = async () => {
+                      const image = String(reader.result || '');
+                      if (!image) return;
+                      try {
+                        await updateUser({ profileImage: image });
+                      } catch {
+                        // toast handled in context
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
             </div>
           </Fade>
         </div>
@@ -253,8 +326,8 @@ const UserDashboard = () => {
                           background: t.cream, border: `1px solid ${t.border}`,
                           overflow: 'hidden', flexShrink: 0,
                         }}>
-                          {order.orderItems?.[0]?.image ? (
-                            <img src={order.orderItems[0].image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {order.items?.[0]?.images?.[0] ? (
+                            <img src={order.items[0].images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>📦</div>
                           )}
@@ -263,9 +336,9 @@ const UserDashboard = () => {
                         {/* Order info */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontWeight: 600, fontSize: '0.875rem', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                            {order.orderItems?.[0]?.title ?? 'Order'}
-                            {order.orderItems?.length > 1 && (
-                              <span style={{ color: t.muted, fontWeight: 400 }}> +{order.orderItems.length - 1} more</span>
+                            {order.items?.[0]?.title ?? 'Order'}
+                            {order.items?.length > 1 && (
+                              <span style={{ color: t.muted, fontWeight: 400 }}> +{order.items.length - 1} more</span>
                             )}
                           </p>
                           <p style={{ fontSize: '0.75rem', color: t.muted, marginTop: 3 }}>
@@ -288,7 +361,7 @@ const UserDashboard = () => {
                           fontFamily: "'Syne', sans-serif", fontWeight: 800,
                           fontSize: '0.97rem', color: t.green, flexShrink: 0,
                         }}>
-                          ₦{(order.totalPrice ?? 0).toLocaleString()}
+                          ₦{Number(order.totalAmount ?? order.totalPrice ?? order.total ?? 0).toLocaleString()}
                         </p>
                       </div>
                     );
@@ -333,6 +406,9 @@ const UserDashboard = () => {
                           <div style={{ padding: '10px 12px' }}>
                             <p style={{ fontWeight: 600, fontSize: '0.8rem', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginBottom: 3 }}>
                               {p.title}
+                            </p>
+                            <p style={{ fontSize: '0.68rem', color: t.muted, marginBottom: 5 }}>
+                              {Number(p.quantity ?? (p.inStock ? 1 : 0))} available
                             </p>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '0.85rem', color: t.green }}>

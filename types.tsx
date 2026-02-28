@@ -10,10 +10,12 @@ export const UserRoles = {
 
 export interface User {
   id: string;
+  username?: string;
   name: string;           // Add this
   fullName?: string;      // Keep this if used
   email: string;
   phone?: string;
+  campusRole?: 'student' | 'staff' | 'vendor' | 'other';
   role: UserRole;
   isVerified: boolean;
   avatar?: string;        // Add this
@@ -36,8 +38,10 @@ export interface Product {
   seller: User;
   condition: 'New' | 'Like New' | 'Good' | 'Fair';
   inStock: boolean;
+  quantity?: number;
   ratings: number;
   reviews: Review[];
+  isApproved?: boolean;
   createdAt?: string;
 }
 
@@ -66,8 +70,12 @@ export interface Order {
   userId: string;
   items: CartItem[];
   total: number;
-  status: 'pending' | 'completed' | 'cancelled' | 'return_requested' | 'returned';
+  totalPrice?: number;
+  totalAmount?: number;
+  paymentStatus?: 'pending' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'return_requested' | 'returned';
   date: string;
+  createdAt?: string;
   deliveredAt?: string;
 }
 

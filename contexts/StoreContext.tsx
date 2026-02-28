@@ -15,11 +15,13 @@ interface StoreContextType {
   disputes: Dispute[];
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  refreshConversations: () => Promise<void>;
   login: (email: string, password?: string) => Promise<void>;
-  register: (fullName: string, email: string, password: string, phone: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string, phone: string, profileImage?: string, username?: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => Promise<void>;
   addToCart: (product: Product, quantity?: number) => Promise<void>;
+  refreshCart: () => Promise<void>;
   updateQuantity: (productId: string, quantity: number) => Promise<void>;
   removeFromCart: (productId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -64,10 +66,12 @@ const getAverageRating = (ratings: unknown): number => {
 
 const normalizeUser = (user: User | Record<string, any>): User => ({
   id: (user as any).id || (user as any)._id,
+  username: (user as any).username,
   name: (user as any).fullName || (user as any).name || 'User',
   fullName: (user as any).fullName || (user as any).name,
   email: (user as any).email,
   phone: (user as any).phone,
+  campusRole: (user as any).campusRole,
   role: (user as any).role || 'user',
   isVerified: (user as any).isVerified ?? false,
   avatar: (user as any).profileImage || (user as any).avatar,
@@ -77,6 +81,7 @@ const normalizeUser = (user: User | Record<string, any>): User => ({
 
 const normalizeProduct = (product: Product | Record<string, any>): Product => {
   const seller = normalizeUser(product.seller || {});
+  const productId = (product as any).id || (product as any)._id;
   const rawImages = Array.isArray((product as any).images)
     ? (product as any).images
     : (product as any).images
@@ -85,24 +90,104 @@ const normalizeProduct = (product: Product | Record<string, any>): Product => {
         ? [(product as any).image]
         : [];
   const images = rawImages
-    .map((img: unknown) => String(img))
+    .map((img: unknown) => {
+      if (typeof img === 'string') return img;
+      if (img && typeof img === 'object' && 'url' in (img as Record<string, unknown>)) {
+        return String((img as Record<string, unknown>).url || '');
+      }
+      return '';
+    })
     .filter(Boolean)
     .map((img: string) => {
       if (img.startsWith('http') || img.startsWith('data:')) return img;
       const normalized = img.startsWith('/') ? img : `/${img}`;
       return `${apiOrigin}${normalized}`;
     });
+  const ratingEntries = Array.isArray((product as any).ratings)
+    ? (product as any).ratings
+    : Array.isArray((product as any).reviews)
+      ? (product as any).reviews
+      : [];
+  const reviews: Review[] = ratingEntries
+    .map((entry: any, index: number) => ({
+      id: entry?._id || `${productId}-${entry?.userId?._id || entry?.userId || index}`,
+      productId,
+      userId: String(entry?.userId?._id || entry?.userId || ''),
+      userName: entry?.userId?.fullName || entry?.userName || 'Verified Buyer',
+      rating: Number(entry?.rating || 0),
+      comment: String(entry?.review || entry?.comment || ''),
+      date: entry?.createdAt ? new Date(entry.createdAt).toLocaleDateString() : undefined,
+    }))
+    .filter((entry: Review) => Number.isFinite(entry.rating) && entry.rating > 0);
+  const rawQuantity = Number((product as any).quantity);
+  const quantity = Number.isFinite(rawQuantity) && rawQuantity >= 0
+    ? Math.floor(rawQuantity)
+    : ((product as any).inStock === false ? 0 : 1);
+  const inStock = quantity > 0 && (product as any).inStock !== false;
   return {
     ...(product as Product),
-    id: (product as any).id || (product as any)._id,
+    id: productId,
     seller,
     images,
-    ratings: getAverageRating((product as any).ratings),
+    quantity,
+    inStock,
+    ratings: getAverageRating(ratingEntries),
+    reviews,
+  };
+};
+
+const normalizeOrderItem = (item: any): CartItem => {
+  const product = item?.product || item?.productId || {};
+  const productId = product?._id || product?.id || item?.product || item?.productId;
+  const title = product?.title || item?.title || 'Item';
+  const category = product?.category || item?.category || 'Others';
+  const images = Array.isArray(product?.images)
+    ? product.images
+    : Array.isArray(item?.images)
+      ? item.images
+      : [];
+  const quantity = Number(item?.quantity || 1);
+  const price = Number(item?.price || product?.price || 0);
+  const stockCount = Number(product?.quantity);
+
+  return {
+    id: String(productId || ''),
+    title,
+    price,
+    quantity,
+    images,
+    category,
+    stock: Number.isFinite(stockCount) ? stockCount : (product?.inStock === false ? 0 : 1),
+  };
+};
+
+const normalizeOrder = (order: any): Order => {
+  const itemsSource = Array.isArray(order?.items)
+    ? order.items
+    : Array.isArray(order?.orderItems)
+      ? order.orderItems
+      : [];
+  const items = itemsSource.map(normalizeOrderItem);
+  const totalAmount = Number(order?.totalAmount ?? order?.totalPrice ?? order?.total ?? 0);
+
+  return {
+    id: order?._id || order?.id,
+    userId: String(order?.buyer?._id || order?.buyer || order?.userId || ''),
+    items,
+    total: totalAmount,
+    totalPrice: totalAmount,
+    totalAmount,
+    paymentStatus: order?.paymentStatus,
+    status: order?.status || 'pending',
+    date: order?.createdAt || order?.date || new Date().toISOString(),
+    createdAt: order?.createdAt,
+    deliveredAt: order?.deliveredAt,
   };
 };
 
 const normalizeCartItem = (item: any): CartItem => {
   const product = item?.productId || {};
+  const stockCount = Number(product.quantity);
   return {
     id: product._id || product.id || item.productId,
     title: product.title || item.title || 'Item',
@@ -110,7 +195,7 @@ const normalizeCartItem = (item: any): CartItem => {
     quantity: Number(item.quantity || 1),
     images: Array.isArray(product.images) ? product.images : item.images || [],
     category: product.category || item.category || 'Others',
-    stock: product.inStock === false ? 0 : 1,
+    stock: Number.isFinite(stockCount) ? stockCount : (product.inStock === false ? 0 : 1),
   };
 };
 
@@ -136,8 +221,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
   
-  const [reviews] = useState<Review[]>([]);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const reviews = products.flatMap((product) => Array.isArray(product.reviews) ? product.reviews : []);
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -149,16 +234,29 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [user]);
 
   const fetchProducts = useCallback(async () => {
+    const readProducts = (payload: any) => {
+      if (Array.isArray(payload)) return payload;
+      if (Array.isArray(payload?.products)) return payload.products;
+      return [];
+    };
+
     try {
+      if (user?.role === 'admin') {
+        const { data } = await API.get('/admin/products');
+        const incoming = readProducts(data);
+        setProducts(incoming.map(normalizeProduct));
+        return;
+      }
+
       const { data } = await API.get('/products');
-      const incoming = data.products || data || [];
-      setProducts((Array.isArray(incoming) ? incoming : []).map(normalizeProduct));
+      const incoming = readProducts(data);
+      setProducts(incoming.map(normalizeProduct));
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Failed to load products.';
       setProducts([]);
       addToast(msg, 'error');
     }
-  }, [addToast]);
+  }, [addToast, user]);
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
@@ -169,7 +267,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
     try {
       const { data } = await API.get('/orders/myorders');
-      setOrders(data);
+      const incoming = Array.isArray(data) ? data : [];
+      setOrders(incoming.map(normalizeOrder));
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Failed to load orders.';
       setOrders([]);
@@ -194,6 +293,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [user, addToast]);
 
+  const refreshConversations = useCallback(async () => {
+    await fetchConversations();
+  }, [fetchConversations]);
+
   const fetchUsers = useCallback(async () => {
     if (!user || user.role !== 'admin') return;
     try {
@@ -207,7 +310,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [user, addToast]);
 
-  const fetchCart = useCallback(async () => {
+  const fetchCart = useCallback(async (options?: { silent?: boolean }) => {
     if (!user) return;
     try {
       const { data } = await API.get('/cart');
@@ -216,9 +319,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Failed to load cart.';
       setCart([]);
-      addToast(msg, 'error');
+      if (!options?.silent) {
+        addToast(msg, 'error');
+      }
     }
   }, [user, addToast]);
+
+  const refreshCart = useCallback(async () => {
+    await fetchCart({ silent: true });
+  }, [fetchCart]);
 
   const fetchWishlist = useCallback(async () => {
     if (!user) return;
@@ -283,22 +392,25 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  const register = async (fullName: string, email: string, password: string, phone: string) => {
+  const register = async (fullName: string, email: string, password: string, phone: string, profileImage?: string, username?: string) => {
     try {
-      const { data } = await API.post('/auth/register', { fullName, email, password, phone });
-      if (data.token) {
+      const { data } = await API.post('/auth/register', { fullName, email, password, phone, profileImage, username });
+      if (data.token && data.user) {
         sessionStorage.setItem('token', data.token);
         localStorage.removeItem('token');
+        if (data.refreshToken) {
+          sessionStorage.setItem('refreshToken', data.refreshToken);
+          localStorage.removeItem('refreshToken');
+        }
+        const mappedUser = normalizeUser(data.user || data);
+        setUser(mappedUser);
+        sessionStorage.setItem('user', JSON.stringify(mappedUser));
+        localStorage.removeItem('user');
+        addToast(`Account created! Welcome, ${mappedUser.name}!`);
+        return;
       }
-      if (data.refreshToken) {
-        sessionStorage.setItem('refreshToken', data.refreshToken);
-        localStorage.removeItem('refreshToken');
-      }
-      const mappedUser = normalizeUser(data.user || data);
-      setUser(mappedUser);
-      sessionStorage.setItem('user', JSON.stringify(mappedUser));
-      localStorage.removeItem('user');
-      addToast(`Account created! Welcome, ${mappedUser.name}!`);
+
+      addToast(data?.message || 'Registration successful. Verify your email before logging in.', 'info');
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Registration failed. Please try again.';
       addToast(msg, 'error');
@@ -332,6 +444,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         fullName: updates.fullName || updates.name,
         phone: updates.phone,
         profileImage: updates.profileImage || updates.avatar,
+        campusRole: updates.campusRole,
       };
       const { data } = await API.put('/users/profile', payload);
       const mappedUser = normalizeUser(data.user || data);
@@ -365,10 +478,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const updateQuantity = async (productId: string, quantity: number) => {
     try {
-      await API.post('/cart/remove', { productId });
-      if (quantity > 0) {
+      const currentQty = cart.find((item) => item.id === productId)?.quantity || 0;
+
+      if (quantity <= 0) {
+        await API.post('/cart/remove', { productId });
+      } else if (quantity > currentQty) {
+        await API.post('/cart/add', { productId, quantity: quantity - currentQty });
+      } else {
+        await API.post('/cart/remove', { productId });
         await API.post('/cart/add', { productId, quantity });
       }
+
       await fetchCart();
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Failed to update cart.';
@@ -407,8 +527,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       };
       const { data } = await API.post('/products', payload);
       const created = data?.product || data;
-      setProducts(prev => [normalizeProduct(created), ...prev]);
-      addToast('Product listed successfully!');
+      if (created?.isApproved) {
+        setProducts(prev => [normalizeProduct(created), ...prev]);
+        addToast('Product listed successfully!');
+      } else {
+        addToast('Listing submitted. It will appear after admin approval.', 'info');
+      }
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Failed to list product.';
       addToast(msg, 'error');
@@ -472,8 +596,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       await API.post('/orders', orderData);
       await clearCart();
       addToast('Order placed successfully!');
-    } catch (error) {
-      addToast('Failed to place order.', 'error');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to place order.';
+      addToast(msg, 'error');
     }
   };
 
@@ -495,7 +620,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!user) return;
     try {
       await API.post('/messages', { receiverId, content, productId });
-      fetchConversations();
+      await fetchConversations();
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Failed to send message.';
       addToast(msg, 'error');
@@ -505,7 +630,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const markAsRead = async (conversationId: string) => {
     try {
-      await API.put(`/messages/${conversationId}/read`);
+      await API.put(`/messages/conversation/${conversationId}/read`);
       setConversations(prev => prev.map(c => {
         if (c.id === conversationId) {
           return {
@@ -525,7 +650,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     try {
       const { data } = await API.put(`/orders/${orderId}/status`, { status });
-      setOrders(prev => prev.map(o => o.id === orderId ? data : o));
+      setOrders(prev => prev.map(o => o.id === orderId ? normalizeOrder(data) : o));
       addToast(`Order updated to ${status}`);
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Failed to update order.';
@@ -537,7 +662,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const requestReturn = async (orderId: string) => {
     try {
         const { data } = await API.post(`/orders/${orderId}/return`);
-        setOrders(prev => prev.map(o => o.id === orderId ? data : o));
+        setOrders(prev => prev.map(o => o.id === orderId ? normalizeOrder(data) : o));
         addToast('Return requested successfully. We will review it shortly.');
     } catch (error: any) {
         const msg = error.response?.data?.message || 'Failed to request return';
@@ -588,7 +713,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <StoreContext.Provider value={{
       user, allUsers, products, cart, wishlist, orders, reviews, conversations, disputes, searchQuery, setSearchQuery,
-      login, register, logout, updateUser, addToCart, updateQuantity, removeFromCart, clearCart,
+      refreshConversations,
+      login, register, logout, updateUser, addToCart, refreshCart, updateQuantity, removeFromCart, clearCart,
       addProduct, updateProduct, deleteProduct, toggleWishlist, checkout, addReview,
       sendMessage, markAsRead, updateUserStatus, impersonateUser, updateProductStatus,
       updateOrderStatus, updateDisputeStatus, requestReturn

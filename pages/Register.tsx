@@ -19,6 +19,8 @@ const t = {
   errorBg:    '#FEF2F2',
 };
 
+const generateHumanCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+
 /* ── Field component ── */
 const Field = ({
   label, type = 'text', value, onChange, placeholder, icon: Icon,
@@ -99,12 +101,16 @@ const PasswordStrength = ({ password }: { password: string }) => {
 ════════════════════════ */
 const Register = () => {
   const [name, setName]             = useState('');
+  const [username, setUsername]     = useState('');
   const [email, setEmail]           = useState('');
   const [phone, setPhone]           = useState('');
+  const [profileImage, setProfileImage] = useState('');
   const [password, setPassword]     = useState('');
   const [confirmPw, setConfirmPw]   = useState('');
   const [showPw, setShowPw]         = useState(false);
   const [agreed, setAgreed]         = useState(false);
+  const [humanCode, setHumanCode]   = useState(() => generateHumanCode());
+  const [humanInput, setHumanInput] = useState('');
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
 
@@ -119,11 +125,12 @@ const Register = () => {
     if (!email.includes('@babcock.edu.ng'))     return setError('Please use your @babcock.edu.ng email address.');
     if (password.length < 6)                   return setError('Password must be at least 6 characters.');
     if (password !== confirmPw)                return setError('Passwords do not match.');
+    if (humanInput.trim().toUpperCase() !== humanCode) return setError('Please type the human-check code correctly.');
     if (!agreed)                               return setError('Please accept the terms to continue.');
 
     setLoading(true);
     try {
-      await register(name, email, password, phone);
+      await register(name, email, password, phone, profileImage, username);
       navigate('/', { replace: true });
     } catch {
       setError('Registration failed. Please try again.');
@@ -141,7 +148,7 @@ const Register = () => {
 
   const steps = [
     { num: '01', title: 'Create account', desc: 'Takes under 2 minutes' },
-    { num: '02', title: 'Verify email',   desc: 'Babcock address required' },
+    { num: '02', title: 'Complete code check', desc: 'Simple anti-bot step' },
     { num: '03', title: 'Start trading',  desc: 'Buy or list immediately' },
   ];
 
@@ -329,9 +336,41 @@ const Register = () => {
             />
 
             <Field
+              label="Username" type="text" value={username} onChange={setUsername}
+              placeholder="chukwuemeka_obi" icon={User}
+              hint="Used for login and visible to admins"
+            />
+
+            <Field
               label="Phone Number" type="tel" value={phone} onChange={setPhone}
               placeholder="0801 234 5678" icon={Phone}
             />
+
+            <div style={{ border: `1px solid ${t.border}`, borderRadius: 12, padding: '12px 14px', background: t.cream }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: t.ink, marginBottom: 8 }}>
+                Profile Picture (optional)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: `1px solid ${t.border}`, background: '#fff' }}>
+                  {profileImage
+                    ? <img src={profileImage} alt="Profile preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.muted, fontSize: '0.7rem' }}>IMG</div>
+                  }
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onloadend = () => setProfileImage(String(reader.result || ''));
+                    reader.readAsDataURL(file);
+                  }}
+                  style={{ fontSize: '0.76rem', color: t.muted }}
+                />
+              </div>
+            </div>
 
             <div>
               <Field
@@ -363,6 +402,37 @@ const Register = () => {
               }
               required
             />
+
+            <div style={{ background: t.cream, border: `1px solid ${t.border}`, borderRadius: 12, padding: '12px 14px' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: t.ink, marginBottom: 6 }}>
+                Human Check
+              </label>
+              <p style={{ fontSize: '0.78rem', color: t.muted, marginBottom: 8 }}>
+                Type this code to continue: <strong style={{ color: t.green }}>{humanCode}</strong>
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={humanInput}
+                  onChange={e => setHumanInput(e.target.value.toUpperCase())}
+                  placeholder="Enter code"
+                  style={{
+                    flex: 1, border: `1.5px solid ${t.border}`, borderRadius: 10,
+                    padding: '10px 12px', fontSize: '0.86rem', outline: 'none',
+                    fontFamily: "'Instrument Sans', sans-serif",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { setHumanCode(generateHumanCode()); setHumanInput(''); }}
+                  style={{
+                    border: `1.5px solid ${t.border}`, background: '#fff', borderRadius: 10,
+                    padding: '0 12px', fontWeight: 600, color: t.muted, cursor: 'pointer',
+                  }}
+                >
+                  New
+                </button>
+              </div>
+            </div>
 
             {/* Terms */}
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>

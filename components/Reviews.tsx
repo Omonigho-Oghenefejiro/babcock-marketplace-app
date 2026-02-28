@@ -27,9 +27,11 @@ const ratingLabel: Record<number, string> = {
 
 interface ReviewsProps {
   productId: string;
+  sellerId?: string;
+  canWriteReview?: boolean;
 }
 
-const Reviews: React.FC<ReviewsProps> = ({ productId }) => {
+const Reviews: React.FC<ReviewsProps> = ({ productId, sellerId, canWriteReview = false }) => {
   const { user, reviews, addReview } = useStore();
   const [rating,      setRating]      = useState(5);
   const [comment,     setComment]     = useState('');
@@ -39,6 +41,7 @@ const Reviews: React.FC<ReviewsProps> = ({ productId }) => {
   const [submitted,   setSubmitted]   = useState(false);
 
   const productReviews = reviews.filter(r => r.productId === productId);
+  const isListingOwner = Boolean(user?.id && sellerId && String(user.id) === String(sellerId));
 
   /* ── Rating distribution ── */
   const dist = [5, 4, 3, 2, 1].map(n => ({
@@ -58,12 +61,15 @@ const Reviews: React.FC<ReviewsProps> = ({ productId }) => {
     if (!comment.trim()) return;
     setSubmitting(true);
     await new Promise(r => setTimeout(r, 600)); // small delay for UX
-    addReview(productId, rating, comment);
-    setComment('');
-    setRating(5);
-    setSubmitting(false);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    try {
+      await addReview(productId, rating, comment);
+      setComment('');
+      setRating(5);
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 3000);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const displayStar = hovered ?? rating;
@@ -212,6 +218,39 @@ const Reviews: React.FC<ReviewsProps> = ({ productId }) => {
 
             <div style={{ padding: '20px 20px' }}>
               {user ? (
+                isListingOwner ? (
+                  <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                    <div style={{
+                      width: 52, height: 52, borderRadius: 14,
+                      background: t.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      margin: '0 auto 14px',
+                    }}>
+                      <Lock size={22} color={t.green} />
+                    </div>
+                    <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.95rem', color: t.ink, marginBottom: 6 }}>
+                      You can’t review your own listing
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: t.muted, lineHeight: 1.6 }}>
+                      Buyers can still leave ratings and reviews on this product.
+                    </p>
+                  </div>
+                ) : !canWriteReview ? (
+                  <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                    <div style={{
+                      width: 52, height: 52, borderRadius: 14,
+                      background: t.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      margin: '0 auto 14px',
+                    }}>
+                      <Lock size={22} color={t.green} />
+                    </div>
+                    <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.95rem', color: t.ink, marginBottom: 6 }}>
+                      Purchase required to review
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: t.muted, lineHeight: 1.6 }}>
+                      Only users who purchased this product can write a review.
+                    </p>
+                  </div>
+                ) : (
                 <>
                   <AnimatePresence>
                     {submitted && (
@@ -342,6 +381,7 @@ const Reviews: React.FC<ReviewsProps> = ({ productId }) => {
                     </button>
                   </form>
                 </>
+                )
               ) : (
                 /* Not signed in */
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -18,22 +18,41 @@ import {
   Wallet,
 } from 'lucide-react';
 import { Product } from '../types';
+import API from '../services/api';
+import { useStore } from '../contexts/StoreContext';
 
 type PaymentMethod = 'card' | 'bank' | 'ussd' | 'mobile';
 
 type PaymentState = {
   product?: Product;
+  checkout?: {
+    name?: string;
+    image?: string;
+    total?: number;
+    seller?: string;
+    items?: Array<{
+      id: string;
+      title?: string;
+      price: number;
+      quantity: number;
+      image?: string;
+    }>;
+  };
 };
 
 const PaymentSimulation = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { clearCart } = useStore();
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [orderMessage, setOrderMessage] = useState('');
   const [countdown, setCountdown] = useState(10);
   const [receiptRef, setReceiptRef] = useState('');
+  const orderCreatedRef = useRef(false);
   const [formData, setFormData] = useState({
     cardNumber: '',
     cardName: '',
@@ -46,17 +65,27 @@ const PaymentSimulation = () => {
 
   const paymentState = (location.state as PaymentState | null) ?? null;
   const selectedProduct = paymentState?.product;
+  const storedCheckout = (() => {
+    try {
+      const raw = sessionStorage.getItem('checkoutDemoState');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const checkout = paymentState?.checkout || storedCheckout;
 
   const product = useMemo(
     () => ({
-      name: selectedProduct?.title ?? 'MacBook Pro 2023',
-      price: selectedProduct?.price ?? 450000,
-      seller: selectedProduct?.seller?.name ?? selectedProduct?.seller?.fullName ?? 'John Doe',
+      name: checkout?.name ?? selectedProduct?.title ?? 'MacBook Pro 2023',
+      price: Number(checkout?.total ?? selectedProduct?.price ?? 450000),
+      seller: checkout?.seller ?? selectedProduct?.seller?.name ?? selectedProduct?.seller?.fullName ?? 'John Doe',
       image:
+        checkout?.image ??
         selectedProduct?.images?.[0] ??
         'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500',
     }),
-    [selectedProduct],
+    [selectedProduct, checkout],
   );
 
   useEffect(() => {
@@ -79,6 +108,58 @@ const PaymentSimulation = () => {
 
     return () => window.clearInterval(timer);
   }, [processing]);
+
+  useEffect(() => {
+    if (!success || orderCreatedRef.current) {
+      return;
+    }
+
+    const checkoutItems: Array<{ id: string; title?: string; price: number; quantity: number; image?: string }> =
+      Array.isArray(checkout?.items) ? checkout.items : [];
+    if (!checkoutItems.length) {
+      return;
+    }
+
+    orderCreatedRef.current = true;
+
+    const finalizeOrder = async () => {
+      setPlacingOrder(true);
+      try {
+        const payload = {
+          orderItems: checkoutItems.map((item: { id: string; title?: string; price: number; quantity: number; image?: string }) => ({
+            product: item.id,
+            title: item.title,
+            image: item.image || '',
+            price: Number(item.price || 0),
+            quantity: Number(item.quantity || 1),
+          })),
+          itemsPrice: checkoutItems.reduce((sum: number, item: { price: number; quantity: number }) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0),
+          taxPrice: 500,
+          totalPrice: Number(product.price || 0),
+          paymentReference: receiptRef || `SIM_${Date.now()}`,
+          deliveryMethod: 'pickup',
+          pickupLocation: 'Main Gate Pickup Point',
+        };
+
+        const { data } = await API.post('/orders', payload);
+        await clearCart();
+        sessionStorage.removeItem('checkoutDemoState');
+        const orderId = data?._id || data?.id;
+        setOrderMessage(
+          orderId
+            ? `Payment confirmed. Order #${String(orderId).slice(-8).toUpperCase()} has been placed successfully.`
+            : 'Payment confirmed. Your order has been placed successfully.'
+        );
+      } catch (error: any) {
+        const msg = error?.response?.data?.message || 'Payment succeeded but order placement failed.';
+        setOrderMessage(msg);
+      } finally {
+        setPlacingOrder(false);
+      }
+    };
+
+    finalizeOrder();
+  }, [success, checkout, product.price, clearCart, receiptRef]);
 
   const formatCardNumber = (value: string) => {
     const numbersOnly = value.replace(/\D/g, '').slice(0, 16);
@@ -442,6 +523,14 @@ const PaymentSimulation = () => {
                     <h3 className="text-2xl font-bold text-white mb-2">Payment Successful!</h3>
                     <p className="text-[#6B8EB5] mb-6">Your transaction was completed successfully</p>
 
+                    {(placingOrder || orderMessage) && (
+                      <div className="bg-[#0A1929] border border-[#1E3A5F] rounded-xl p-3 mb-6 text-left">
+                        <p className="text-sm text-white">
+                          {placingOrder ? 'Finalizing order...' : orderMessage}
+                        </p>
+                      </div>
+                    )}
+
                     <div className="bg-[#0A1929] rounded-xl p-6 mb-6 text-left">
                       <div className="flex justify-between mb-2">
                         <span className="text-[#6B8EB5]">Reference:</span>
@@ -457,12 +546,20 @@ const PaymentSimulation = () => {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => navigate('/shop')}
-                      className="bg-[#00A3FF] hover:bg-[#0093E6] text-white font-semibold px-8 py-4 rounded-xl"
-                    >
-                      Return to Marketplace
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <button
+                        onClick={() => navigate('/purchased-items')}
+                        className="bg-[#00A3FF] hover:bg-[#0093E6] text-white font-semibold px-8 py-4 rounded-xl"
+                      >
+                        View Purchased Items
+                      </button>
+                      <button
+                        onClick={() => navigate('/shop')}
+                        className="border border-[#1E3A5F] text-white font-semibold px-8 py-4 rounded-xl hover:bg-[#1E3A5F]/40"
+                      >
+                        Continue Shopping
+                      </button>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

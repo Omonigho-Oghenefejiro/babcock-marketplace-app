@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -27,29 +27,85 @@ const t = {
    CART
 ════════════════════════ */
 const Cart = () => {
-  const { cart, removeFromCart, updateQuantity, user } = useStore();
+  const { cart, removeFromCart, updateQuantity, refreshCart, user } = useStore();
   const { addToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>('pickup');
+  const [pickupLocation, setPickupLocation] = useState('Main Gate Pickup Point');
+  const [promoCode, setPromoCode] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) return;
+
+    refreshCart();
+    const intervalId = setInterval(() => {
+      refreshCart();
+    }, 20000);
+
+    return () => clearInterval(intervalId);
+  }, [user, refreshCart]);
 
   const subtotal   = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const serviceFee = 500;
   const total      = subtotal + serviceFee;
+  const hasStockIssues = cart.some((item) => {
+    const availableStock = Number.isFinite(Number(item.stock)) ? Number(item.stock) : 0;
+    return availableStock <= 0 || item.quantity > availableStock;
+  });
 
   const handleCheckout = async () => {
     if (!user) { navigate('/login'); return; }
+    if (hasStockIssues) {
+      addToast('Some cart items exceed available stock. Adjust quantities before checkout.', 'error');
+      return;
+    }
     setIsProcessing(true);
+    const primaryItem = cart[0];
+    const demoState = {
+      checkout: {
+        name: cart.length > 1 ? `${primaryItem?.title} + ${cart.length - 1} more item${cart.length - 1 > 1 ? 's' : ''}` : (primaryItem?.title || 'Cart Purchase'),
+        image: primaryItem?.images?.[0] || '',
+        total,
+        seller: 'Babcock Marketplace',
+        items: cart.map((item) => ({
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.images?.[0] || '',
+        })),
+      },
+    };
+    const redirectToDemoCheckout = () => {
+      sessionStorage.setItem('checkoutDemoState', JSON.stringify(demoState.checkout));
+      const demoUrl = `${window.location.origin}${window.location.pathname}#/pay`;
+      window.location.assign(demoUrl);
+    };
     try {
-      const { data } = await API.post('/payment/initialize', { email: user.email, amount: total });
+      const { data } = await API.post('/payments/initialize', {
+        email: user.email,
+        amount: total,
+        items: cart.map((item) => ({
+          product: item.id,
+          quantity: item.quantity,
+        })),
+        deliveryMethod,
+        pickupLocation,
+        promoCode: promoCode.trim() || undefined,
+      });
       const redirectUrl = data.authorization_url || data.paymentUrl;
       if (redirectUrl && isAllowedExternalRedirectUrl(redirectUrl)) {
         window.location.assign(redirectUrl);
       } else {
-        addToast('Blocked unsafe redirect URL', 'error');
+        addToast('Live checkout unavailable. Redirecting to payment simulation.', 'info');
+        redirectToDemoCheckout();
         setIsProcessing(false);
       }
-    } catch {
-      addToast('Payment connection failed', 'error');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Payment connection failed';
+      addToast(`${msg}. Using payment simulation.`, 'info');
+      redirectToDemoCheckout();
       setIsProcessing(false);
     }
   };
@@ -135,6 +191,12 @@ const Cart = () => {
         <div>
           <AnimatePresence>
             {cart.map((item) => (
+              (() => {
+                const availableStock = Number.isFinite(Number(item.stock)) ? Number(item.stock) : 0;
+                const isOutOfStock = availableStock <= 0;
+                const isOverLimit = item.quantity > availableStock;
+
+                return (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 12 }}
@@ -185,6 +247,31 @@ const Cart = () => {
                       }}>
                         {item.category}
                       </span>
+                      <p style={{ fontSize: '0.72rem', color: t.muted, marginTop: 6 }}>
+                        {availableStock} available
+                      </p>
+                      {(isOutOfStock || isOverLimit) && (
+                        <div style={{ marginTop: 6 }}>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            background: '#FEF2F2', color: '#B91C1C',
+                            fontSize: '0.68rem', fontWeight: 700, borderRadius: 6, padding: '2px 8px',
+                          }}>
+                            {isOutOfStock ? 'Out of stock' : `Selected qty exceeds stock`}
+                          </span>
+                          {!isOutOfStock && (
+                            <button
+                              onClick={() => updateQuantity(item.id, availableStock)}
+                              style={{
+                                marginLeft: 8, background: 'none', border: 'none',
+                                color: t.greenMid, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
+                              }}
+                            >
+                              Adjust to {availableStock}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <p style={{
                       fontFamily: "'Syne', sans-serif", fontWeight: 800,
@@ -229,13 +316,13 @@ const Cart = () => {
                       />
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        disabled={item.quantity >= Number(item.stock)}
+                        disabled={item.quantity >= availableStock || isOutOfStock}
                         style={{
                           width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: 'none', border: 'none', cursor: item.quantity >= Number(item.stock) ? 'not-allowed' : 'pointer',
-                          color: item.quantity >= Number(item.stock) ? '#D1D5DB' : t.ink, transition: 'background 0.15s',
+                          background: 'none', border: 'none', cursor: item.quantity >= availableStock || isOutOfStock ? 'not-allowed' : 'pointer',
+                          color: item.quantity >= availableStock || isOutOfStock ? '#D1D5DB' : t.ink, transition: 'background 0.15s',
                         }}
-                        onMouseEnter={e => { if (item.quantity < Number(item.stock)) e.currentTarget.style.background = t.greenPale; }}
+                        onMouseEnter={e => { if (item.quantity < availableStock && !isOutOfStock) e.currentTarget.style.background = t.greenPale; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
                       >
                         <Plus size={13} />
@@ -260,6 +347,8 @@ const Cart = () => {
                   </div>
                 </div>
               </motion.div>
+                );
+              })()
             ))}
           </AnimatePresence>
         </div>
@@ -295,6 +384,54 @@ const Cart = () => {
               {/* Divider */}
               <div style={{ borderTop: `1px solid ${t.border}`, margin: '16px 0' }} />
 
+              <div style={{ marginBottom: 14 }}>
+                <p style={{ fontSize: '0.78rem', color: t.muted, marginBottom: 6 }}>Fulfillment</p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  {['pickup', 'delivery'].map((method) => {
+                    const active = deliveryMethod === method;
+                    return (
+                      <button
+                        key={method}
+                        onClick={() => setDeliveryMethod(method as any)}
+                        style={{
+                          border: `1.5px solid ${active ? t.greenMid : t.border}`,
+                          background: active ? t.greenPale : '#fff',
+                          color: active ? t.greenMid : t.muted,
+                          borderRadius: 999, padding: '6px 10px', fontSize: '0.75rem', fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {method === 'pickup' ? 'Campus Pickup' : 'Delivery'}
+                      </button>
+                    );
+                  })}
+                </div>
+                {deliveryMethod === 'pickup' && (
+                  <input
+                    value={pickupLocation}
+                    onChange={(e) => setPickupLocation(e.target.value)}
+                    placeholder="Pickup location"
+                    style={{
+                      width: '100%', border: `1.5px solid ${t.border}`, borderRadius: 10,
+                      padding: '8px 10px', fontSize: '0.8rem', color: t.ink, outline: 'none',
+                    }}
+                  />
+                )}
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ fontSize: '0.78rem', color: t.muted, marginBottom: 6 }}>Promo Code</p>
+                <input
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  placeholder="e.g. STUDENT10"
+                  style={{
+                    width: '100%', border: `1.5px solid ${t.border}`, borderRadius: 10,
+                    padding: '8px 10px', fontSize: '0.8rem', color: t.ink, outline: 'none',
+                  }}
+                />
+              </div>
+
               {/* Total */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 22 }}>
                 <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '1rem', color: t.ink }}>Total</span>
@@ -306,23 +443,30 @@ const Cart = () => {
               {/* Checkout button */}
               <button
                 onClick={handleCheckout}
-                disabled={isProcessing}
+                disabled={isProcessing || hasStockIssues}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  background: isProcessing ? '#059669' : '#059669',
+                  background: hasStockIssues ? '#9CA3AF' : '#059669',
                   color: '#fff', border: 'none', borderRadius: 12, padding: '15px',
                   fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.95rem',
-                  cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.8 : 1,
-                  boxShadow: '0 4px 16px rgba(5,150,105,0.3)', transition: 'all 0.2s',
+                  cursor: isProcessing || hasStockIssues ? 'not-allowed' : 'pointer', opacity: isProcessing || hasStockIssues ? 0.8 : 1,
+                  boxShadow: hasStockIssues ? 'none' : '0 4px 16px rgba(5,150,105,0.3)', transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => { if (!isProcessing) e.currentTarget.style.background = '#047857'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#059669'; }}
+                onMouseEnter={e => { if (!isProcessing && !hasStockIssues) e.currentTarget.style.background = '#047857'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = hasStockIssues ? '#9CA3AF' : '#059669'; }}
               >
                 {isProcessing
                   ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Processing...</>
-                  : <><CreditCard size={16} /> Pay ₦{total.toLocaleString()}</>
+                  : hasStockIssues
+                    ? <><CreditCard size={16} /> Pay Unavailable</>
+                    : <><CreditCard size={16} /> Pay ₦{total.toLocaleString()}</>
                 }
               </button>
+              {hasStockIssues && (
+                <p style={{ marginTop: 10, fontSize: '0.75rem', color: '#B91C1C', lineHeight: 1.5 }}>
+                  Resolve out-of-stock or over-limit items to continue.
+                </p>
+              )}
 
               {/* Paystack badge */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14 }}>

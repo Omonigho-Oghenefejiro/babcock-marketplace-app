@@ -1,9 +1,11 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, ChevronDown, Search, SlidersHorizontal } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import BlurredProduct from '../components/BlurredProduct';
 import { useStore } from '../contexts/StoreContext';
+import { useToast } from '../contexts/ToastContext';
 
 /* ── Design tokens ── */
 const t = {
@@ -45,8 +47,20 @@ const SORT_OPTIONS = [
 ════════════════════════════════ */
 const Shop = () => {
   const { products, searchQuery, setSearchQuery, user } = useStore();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      addToast('Admins cannot shop. Redirecting to admin dashboard.', 'info');
+      navigate('/admin', { replace: true });
+    }
+  }, [user, navigate, addToast]);
+
+  if (user?.role === 'admin') return null;
 
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [availability, setAvailability] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
   const [priceRange, setPriceRange] = useState(50000);
   const [sortBy, setSortBy] = useState('default');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -61,7 +75,12 @@ const Shop = () => {
                             p.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchCategory = selectedCategory === 'All' || p.category === selectedCategory;
       const matchPrice    = p.price <= priceRange;
-      return matchSearch && matchCategory && matchPrice;
+      const matchAvailability = availability === 'all'
+        ? true
+        : availability === 'in-stock'
+          ? p.inStock && Number(p.quantity ?? 1) > 0
+          : !p.inStock || Number(p.quantity ?? 0) <= 0;
+      return matchSearch && matchCategory && matchPrice && matchAvailability;
     });
 
     switch (sortBy) {
@@ -70,12 +89,13 @@ const Shop = () => {
       case 'rating':     list = [...list].sort((a, b) => b.ratings - a.ratings); break;
     }
     return list;
-  }, [products, searchQuery, selectedCategory, priceRange, sortBy]);
+  }, [products, searchQuery, selectedCategory, availability, priceRange, sortBy]);
 
-  const hasActiveFilters = selectedCategory !== 'All' || priceRange < 50000;
+  const hasActiveFilters = selectedCategory !== 'All' || availability !== 'all' || priceRange < 50000;
 
   const clearFilters = () => {
     setSelectedCategory('All');
+    setAvailability('all');
     setPriceRange(50000);
     setSortBy('default');
   };
@@ -164,6 +184,41 @@ const Shop = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
           <span style={{ fontSize: '0.7rem', color: t.muted }}>₦0</span>
           <span style={{ fontSize: '0.7rem', color: t.muted }}>₦50,000+</span>
+        </div>
+      </div>
+
+      {/* Availability */}
+      <div style={{ marginBottom: 32 }}>
+        <p style={{
+          fontFamily: "'Syne', sans-serif", fontWeight: 700,
+          fontSize: '0.68rem', letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: t.muted, marginBottom: 12,
+        }}>
+          Availability
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { label: 'All', value: 'all' },
+            { label: 'In Stock', value: 'in-stock' },
+            { label: 'Out of Stock', value: 'out-of-stock' },
+          ].map((opt) => {
+            const active = availability === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setAvailability(opt.value as any)}
+                style={{
+                  border: `1.5px solid ${active ? t.greenMid : t.border}`,
+                  background: active ? t.greenPale : '#fff',
+                  color: active ? t.greenMid : t.muted,
+                  borderRadius: 999, padding: '6px 10px', fontSize: '0.75rem',
+                  fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

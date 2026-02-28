@@ -20,6 +20,13 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  promoCode: {
+    type: String,
+  },
+  discountAmount: {
+    type: Number,
+    default: 0,
+  },
   paymentStatus: {
     type: String,
     enum: ['pending', 'completed', 'failed'],
@@ -29,6 +36,20 @@ const orderSchema = new mongoose.Schema({
     type: String,
   },
   shippingAddress: {
+    type: String,
+  },
+  deliveryMethod: {
+    type: String,
+    enum: ['pickup', 'delivery'],
+    default: 'pickup',
+  },
+  pickupLocation: {
+    type: String,
+  },
+  estimatedFulfillmentAt: {
+    type: Date,
+  },
+  trackingNumber: {
     type: String,
   },
   status: {

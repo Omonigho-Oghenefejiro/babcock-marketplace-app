@@ -6,6 +6,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  username: {
+    type: String,
+    unique: true,
+    sparse: true,
+    lowercase: true,
+    trim: true,
+  },
   email: {
     type: String,
     required: true,
@@ -14,6 +21,11 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
+  },
+  campusRole: {
+    type: String,
+    enum: ['student', 'staff', 'vendor', 'other'],
+    default: 'student',
   },
   password: {
     type: String,
@@ -30,6 +42,12 @@ const userSchema = new mongoose.Schema({
   isVerified: {
     type: Boolean,
     default: false,
+  },
+  resetPasswordToken: {
+    type: String,
+  },
+  resetPasswordExpires: {
+    type: Date,
   },
   wishlist: [
     {

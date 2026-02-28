@@ -1,12 +1,11 @@
 const express = require('express');
 const Message = require('../models/Message');
 const auth = require('../middleware/auth');
-const adminCheck = require('../middleware/adminCheck');
 
 const router = express.Router();
 
 // Get all conversations for current user (grouped by other participant)
-router.get('/', auth, adminCheck, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const userId = req.user.userId;
     
@@ -44,6 +43,7 @@ router.get('/', auth, adminCheck, async (req, res) => {
         id: msg._id.toString(),
         senderId: msg.sender._id.toString(),
         content: msg.content,
+        attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
         timestamp: msg.createdAt.toISOString(),
         read: msg.isRead
       });
@@ -62,15 +62,16 @@ router.get('/', auth, adminCheck, async (req, res) => {
 });
 
 // Send message (matches frontend POST /messages)
-router.post('/', auth, adminCheck, async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const { receiverId, productId, content } = req.body;
+    const { receiverId, productId, content, attachments } = req.body;
 
     const message = new Message({
       sender: req.user.userId,
       receiver: receiverId,
       product: productId,
       content,
+      attachments: Array.isArray(attachments) ? attachments : [],
     });
 
     await message.save();
@@ -86,16 +87,45 @@ router.post('/', auth, adminCheck, async (req, res) => {
   }
 });
 
-// Send message (legacy route)
-router.post('/send', auth, adminCheck, async (req, res) => {
+// Send message to multiple recipients
+router.post('/bulk', auth, async (req, res) => {
   try {
-    const { receiverId, productId, content } = req.body;
+    const { receiverIds, productId, content, attachments } = req.body;
+
+    if (!Array.isArray(receiverIds) || receiverIds.length === 0) {
+      return res.status(400).json({ message: 'receiverIds must be a non-empty array' });
+    }
+
+    const payload = receiverIds.map((receiverId) => ({
+      sender: req.user.userId,
+      receiver: receiverId,
+      product: productId,
+      content,
+      attachments: Array.isArray(attachments) ? attachments : [],
+    }));
+
+    const created = await Message.insertMany(payload);
+
+    res.status(201).json({
+      message: 'Messages sent',
+      count: created.length,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Send message (legacy route)
+router.post('/send', auth, async (req, res) => {
+  try {
+    const { receiverId, productId, content, attachments } = req.body;
 
     const message = new Message({
       sender: req.user.userId,
       receiver: receiverId,
       product: productId,
       content,
+      attachments: Array.isArray(attachments) ? attachments : [],
     });
 
     await message.save();
@@ -112,7 +142,7 @@ router.post('/send', auth, adminCheck, async (req, res) => {
 });
 
 // Get messages between two users
-router.get('/conversation/:userId', auth, adminCheck, async (req, res) => {
+router.get('/conversation/:userId', auth, async (req, res) => {
   try {
     const messages = await Message.find({
       $or: [
@@ -130,8 +160,36 @@ router.get('/conversation/:userId', auth, adminCheck, async (req, res) => {
   }
 });
 
+// Mark all messages in a conversation as read for current user
+router.put('/conversation/:conversationId/read', auth, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const [otherUserId, productId] = String(req.params.conversationId || '').split('-');
+
+    if (!otherUserId) {
+      return res.status(400).json({ message: 'Invalid conversation id' });
+    }
+
+    const query = {
+      sender: otherUserId,
+      receiver: userId,
+    };
+
+    if (productId) {
+      query.product = productId;
+    } else {
+      query.$or = [{ product: { $exists: false } }, { product: null }];
+    }
+
+    const result = await Message.updateMany(query, { isRead: true });
+    return res.json({ message: 'Conversation marked as read', modifiedCount: result.modifiedCount || 0 });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 // Mark as read
-router.put('/:id/read', auth, adminCheck, async (req, res) => {
+router.put('/:id/read', auth, async (req, res) => {
   try {
     const message = await Message.findByIdAndUpdate(
       req.params.id,

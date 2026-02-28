@@ -177,9 +177,9 @@ const Login = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <Field
-              label="Email address" type="email"
+              label="Email or Username" type="text"
               value={email} onChange={setEmail}
-              placeholder="you@babcock.edu.ng" icon={Mail}
+              placeholder="you@babcock.edu.ng or admin" icon={Mail}
             />
 
             <Field

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageSquare, Send, X } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { generateAssistantReply, type AssistantMessage } from '../services/geminiService';
 
 const tokens = {
@@ -14,6 +15,7 @@ const tokens = {
 };
 
 const AIAssistant = () => {
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,6 +28,7 @@ const AIAssistant = () => {
 
   const listRef = useRef<HTMLDivElement>(null);
   const hasKey = Boolean(import.meta.env.VITE_GEMINI_API_KEY);
+  const bottomOffset = location.pathname === '/messages' ? 96 : 22;
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -56,7 +59,7 @@ const AIAssistant = () => {
   };
 
   return (
-    <div style={{ position: 'fixed', right: 22, bottom: 22, zIndex: 80 }}>
+    <div style={{ position: 'fixed', right: 22, bottom: bottomOffset, zIndex: 80 }}>
       {open && (
         <div
           style={{

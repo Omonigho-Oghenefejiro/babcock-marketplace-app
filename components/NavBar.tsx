@@ -60,11 +60,16 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const navLinks = [
-    { label: 'Shop', to: '/shop' },
-    { label: 'Sell', to: '/sell' },
-    { label: 'Messages', to: '/messages' },
-  ];
+  const navLinks = user?.role === 'admin'
+    ? [
+        { label: 'Admin', to: '/admin' },
+        { label: 'Messages', to: '/messages' },
+      ]
+    : [
+        { label: 'Shop', to: '/shop' },
+        { label: 'Sell', to: '/sell' },
+        { label: 'Messages', to: '/messages' },
+      ];
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -164,44 +169,48 @@ const Navbar = () => {
             </div>
 
             <div className="hidden md:flex items-center gap-1">
-              <Link
-                to="/wishlist"
-                className="relative p-2.5 rounded-xl transition-all hover:bg-green-50 group"
-                title="Wishlist"
-              >
-                <Heart
-                  className="w-5 h-5 transition-colors group-hover:text-red-500"
-                  style={{ color: wishlist.length > 0 ? '#EF4444' : tokens.muted }}
-                  fill={wishlist.length > 0 ? '#EF4444' : 'none'}
-                />
-                {wishlist.length > 0 && (
-                  <span
-                    style={{ background: '#EF4444', fontFamily: "'Syne', sans-serif" }}
-                    className="absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+              {user?.role !== 'admin' && (
+                <>
+                  <Link
+                    to="/wishlist"
+                    className="relative p-2.5 rounded-xl transition-all hover:bg-green-50 group"
+                    title="Wishlist"
                   >
-                    {wishlist.length}
-                  </span>
-                )}
-              </Link>
+                    <Heart
+                      className="w-5 h-5 transition-colors group-hover:text-red-500"
+                      style={{ color: wishlist.length > 0 ? '#EF4444' : tokens.muted }}
+                      fill={wishlist.length > 0 ? '#EF4444' : 'none'}
+                    />
+                    {wishlist.length > 0 && (
+                      <span
+                        style={{ background: '#EF4444', fontFamily: "'Syne', sans-serif" }}
+                        className="absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                      >
+                        {wishlist.length}
+                      </span>
+                    )}
+                  </Link>
 
-              <Link
-                to="/cart"
-                className="relative p-2.5 rounded-xl transition-all hover:bg-green-50 group"
-                title="Cart"
-              >
-                <ShoppingCart
-                  className="w-5 h-5 transition-colors group-hover:text-green-700"
-                  style={{ color: cartCount > 0 ? tokens.green : tokens.muted }}
-                />
-                {cartCount > 0 && (
-                  <span
-                    style={{ background: tokens.amber, fontFamily: "'Syne', sans-serif" }}
-                    className="absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                  <Link
+                    to="/cart"
+                    className="relative p-2.5 rounded-xl transition-all hover:bg-green-50 group"
+                    title="Cart"
                   >
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
+                    <ShoppingCart
+                      className="w-5 h-5 transition-colors group-hover:text-green-700"
+                      style={{ color: cartCount > 0 ? tokens.green : tokens.muted }}
+                    />
+                    {cartCount > 0 && (
+                      <span
+                        style={{ background: tokens.amber, fontFamily: "'Syne', sans-serif" }}
+                        className="absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                      >
+                        {cartCount}
+                      </span>
+                    )}
+                  </Link>
+                </>
+              )}
 
               {user ? (
                 <div className="relative ml-1" ref={userMenuRef}>
@@ -233,9 +242,13 @@ const Navbar = () => {
                         fontSize: '0.7rem',
                         fontWeight: 800,
                         fontFamily: "'Syne', sans-serif",
+                        overflow: 'hidden',
                       }}
                     >
-                      {firstName[0].toUpperCase()}
+                      {user?.profileImage
+                        ? <img src={user.profileImage} alt={user.name || 'Profile'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : firstName[0].toUpperCase()
+                      }
                     </div>
                     {firstName}
                     <ChevronDown
@@ -265,11 +278,14 @@ const Navbar = () => {
                           {user.name}
                         </p>
                       </div>
-                      {[
-                        { label: 'Dashboard', to: '/dashboard' },
-                        { label: 'My Orders', to: '/dashboard' },
-                        { label: 'Sell an Item', to: '/sell' },
-                      ].map((item) => (
+                      {(user.role === 'admin'
+                        ? [{ label: 'Admin Dashboard', to: '/admin' }]
+                        : [
+                            { label: 'Dashboard', to: '/dashboard' },
+                            { label: 'My Orders', to: '/dashboard' },
+                            { label: 'Purchased Items', to: '/purchased-items' },
+                            { label: 'Sell an Item', to: '/sell' },
+                          ]).map((item) => (
                         <Link
                           key={item.to + item.label}
                           to={item.to}
@@ -469,9 +485,13 @@ const Navbar = () => {
                     fontWeight: 800,
                     color: '#fff',
                     fontSize: '1rem',
+                    overflow: 'hidden',
                   }}
                 >
-                  {firstName[0].toUpperCase()}
+                  {user?.profileImage
+                    ? <img src={user.profileImage} alt={user.name || 'Profile'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : firstName[0].toUpperCase()
+                  }
                 </div>
                 <div>
                   <p style={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>{user.name}</p>

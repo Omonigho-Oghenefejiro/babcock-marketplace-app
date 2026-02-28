@@ -8,6 +8,7 @@ import {
 import { useStore } from '../contexts/StoreContext';
 import { Product } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import API from '../services/api';
 
 /* ── Tokens ── */
 const t = {
@@ -103,18 +104,45 @@ const SellItem = () => {
 
   const [title,       setTitle]       = useState('');
   const [price,       setPrice]       = useState('');
+  const [quantity,    setQuantity]    = useState('1');
   const [category,    setCategory]    = useState('Textbooks');
   const [condition,   setCondition]   = useState<Product['condition']>('Good');
   const [phone,       setPhone]       = useState('');
   const [description, setDescription] = useState('');
   const [image,       setImage]       = useState<string | null>(null);
+  const [myListings,  setMyListings]  = useState<Product[]>([]);
+  const [loadingMine, setLoadingMine] = useState(false);
 
   const [isSubmitting,  setIsSubmitting]  = useState(false);
   const [submitted,     setSubmitted]     = useState(false);
 
   useEffect(() => {
     if (!user) navigate('/login', { state: { from: '/sell', message: 'Sign in to sell items' } });
+    if (user?.role === 'admin') {
+      addToast('Admins cannot sell items. Redirecting to admin dashboard.', 'info');
+      navigate('/admin', { replace: true });
+    }
   }, [user, navigate]);
+
+  if (user?.role === 'admin') return null;
+
+  const fetchMyListings = async () => {
+    if (!user) return;
+    try {
+      setLoadingMine(true);
+      const { data } = await API.get('/products/mine');
+      const incoming = Array.isArray(data) ? data : [];
+      setMyListings(incoming);
+    } catch {
+      addToast('Failed to load your posted listings.', 'error');
+    } finally {
+      setLoadingMine(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMyListings();
+  }, [user]);
 
   if (!user) return null;
 
@@ -138,15 +166,16 @@ const SellItem = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !price || !description || !phone) { addToast('Please fill all required fields', 'error'); return; }
+    if (!title || !price || !quantity || !description || !phone) { addToast('Please fill all required fields', 'error'); return; }
     if (parseFloat(price) <= 0) { addToast('Price must be greater than 0', 'error'); return; }
+    if (parseInt(quantity, 10) <= 0) { addToast('Quantity must be at least 1', 'error'); return; }
     if (!image) { addToast('Please upload a product image', 'error'); return; }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      addProduct({
+    try {
+      await addProduct({
         id: `p-${Date.now()}`,
         title,
         description,
@@ -155,15 +184,20 @@ const SellItem = () => {
         images: image ? [image] : [],
         seller: user,
         condition,
-        inStock: true,
+        quantity: parseInt(quantity, 10),
+        inStock: parseInt(quantity, 10) > 0,
         ratings: 0,
         reviews: [],
         createdAt: new Date().toISOString(),
       });
+
       setIsSubmitting(false);
       setSubmitted(true);
+      await fetchMyListings();
       setTimeout(() => navigate('/shop'), 2000);
-    }, 1500);
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   /* ── Success state ── */
@@ -186,10 +220,10 @@ const SellItem = () => {
             <CheckCircle size={38} color={t.green} />
           </motion.div>
           <h2 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.5rem', color: t.ink, marginBottom: 8 }}>
-            Item Listed! 🎉
+            Listing Submitted! 🎉
           </h2>
           <p style={{ color: t.muted, fontSize: '0.875rem', lineHeight: 1.7 }}>
-            Your listing is now live. Redirecting to shop…
+            Your listing is pending admin approval. Redirecting to shop…
           </p>
         </motion.div>
       </div>
@@ -343,7 +377,7 @@ const SellItem = () => {
                   <div style={{ position: 'relative' }}>
                     <Tag size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.muted, zIndex: 1 }} />
                     <FSelect value={category} onChange={e => setCategory(e.target.value)} style={{ paddingLeft: 32 } as any}>
-                      {['Textbooks','Electronics','Clothing','Food','Hostel','Services','Stationery','Tech'].map(c => (
+                      {['Textbooks','Electronics','Clothing','Hostel Essentials','Food','Others'].map(c => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </FSelect>
@@ -351,7 +385,7 @@ const SellItem = () => {
                 </FormField>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
                 <FormField label="Condition" required>
                   <FSelect value={condition as string} onChange={e => setCondition(e.target.value as any)}>
                     <option value="New">New (Unopened)</option>
@@ -370,6 +404,13 @@ const SellItem = () => {
                       style={{ paddingLeft: 32 } as any}
                     />
                   </div>
+                </FormField>
+
+                <FormField label="Quantity Available" required hint="How many units can buyers order?">
+                  <FInput
+                    type="number" value={quantity} onChange={e => setQuantity(e.target.value)}
+                    placeholder="1" min="1" required
+                  />
                 </FormField>
               </div>
 
@@ -424,6 +465,65 @@ const SellItem = () => {
             </div>
           </div>
         </form>
+
+        <div style={{ marginTop: 24, background: '#fff', border: `1.5px solid ${t.border}`, borderRadius: 20, padding: '20px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <h2 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.05rem', color: t.ink }}>
+              Posted Listings
+            </h2>
+            <span style={{ fontSize: '0.78rem', color: t.muted }}>
+              {myListings.length} total
+            </span>
+          </div>
+
+          {loadingMine ? (
+            <p style={{ fontSize: '0.82rem', color: t.muted }}>Loading your listings…</p>
+          ) : myListings.length === 0 ? (
+            <p style={{ fontSize: '0.82rem', color: t.muted }}>No listings posted yet.</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12 }}>
+              {myListings.map((item: any) => {
+                const qty = Number(item.quantity ?? (item.inStock ? 1 : 0));
+                const isApproved = Boolean(item.isApproved);
+
+                return (
+                  <Link key={item._id || item.id} to={`/product/${item._id || item.id}`} style={{ textDecoration: 'none' }}>
+                    <div style={{ border: `1.5px solid ${t.border}`, borderRadius: 14, overflow: 'hidden', background: '#fff' }}>
+                      <div style={{ aspectRatio: '1', background: t.cream, overflow: 'hidden' }}>
+                        <img
+                          src={item.images?.[0] || 'https://placehold.co/300x300/E8E2D9/1A1A1A?text=Item'}
+                          alt={item.title}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+                      <div style={{ padding: '10px 12px' }}>
+                        <p style={{ fontWeight: 600, fontSize: '0.8rem', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginBottom: 4 }}>
+                          {item.title}
+                        </p>
+                        <p style={{ fontSize: '0.72rem', color: t.muted, marginBottom: 8 }}>
+                          {qty} available
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '0.85rem', color: t.green }}>
+                            ₦{Number(item.price || 0).toLocaleString()}
+                          </span>
+                          <span style={{
+                            fontSize: '0.62rem', fontWeight: 700,
+                            background: isApproved ? t.greenLight : '#FEF3C7',
+                            color: isApproved ? t.greenMid : '#92400E',
+                            borderRadius: 5, padding: '2px 6px',
+                          }}>
+                            {isApproved ? 'Live' : 'Pending'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <style>{`

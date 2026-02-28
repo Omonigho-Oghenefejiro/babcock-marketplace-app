@@ -4,11 +4,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const logger = require('./utils/logger');
+const ensureDefaultAdmin = require('./utils/ensureDefaultAdmin');
+const { startSummaryScheduler } = require('./utils/summaryScheduler');
 
 const app = express();
 
 // CORS configuration
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+const defaultAllowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || defaultAllowedOrigins.join(','))
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
@@ -31,7 +34,7 @@ const corsOptions = {
 };
 
 if (!allowedOrigins.length) {
-  logger.warn('CORS_ALLOWED_ORIGINS is not set. Browser requests with an Origin header will be blocked.');
+  logger.warn('No CORS origins configured. Browser requests with an Origin header will be blocked.');
 }
 
 // Middleware
@@ -50,7 +53,11 @@ mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => logger.info('MongoDB connected'))
+.then(async () => {
+  logger.info('MongoDB connected');
+  await ensureDefaultAdmin();
+  startSummaryScheduler();
+})
 .catch(err => logger.error('MongoDB connection error', { error: err.message }));
 
 // Routes
@@ -62,6 +69,7 @@ app.use('/api/messages', require('./routes/messageRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/support', require('./routes/supportRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {

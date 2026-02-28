@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Search, ArrowLeft, MessageCircle, Check } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { Conversation } from '../types';
+import { getMessagesPollInterval } from '../lib/messaging';
 
 const t = {
   green: '#1B4332',
@@ -29,7 +30,7 @@ const Avatar = ({ name, size = 40, bg = t.green }: { name: string; size?: number
 );
 
 const Messages = () => {
-  const { user, conversations, sendMessage, markAsRead, allUsers, products } = useStore();
+  const { user, conversations, sendMessage, markAsRead, allUsers, products, refreshConversations } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -37,6 +38,9 @@ const Messages = () => {
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isPageVisible, setIsPageVisible] = useState(() =>
+    typeof document === 'undefined' ? true : document.visibilityState === 'visible'
+  );
   const [tempConversation, setTempConversation] = useState<{
     receiverId: string; productId: string; sellerName: string;
   } | null>(null);
@@ -91,6 +95,54 @@ const Messages = () => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [conversations, selectedConvId]);
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      const visible = document.visibilityState === 'visible';
+      setIsPageVisible(visible);
+      if (visible) {
+        refreshConversations();
+      }
+    };
+
+    const handleFocus = () => {
+      setIsPageVisible(true);
+      refreshConversations();
+    };
+
+    const handleBlur = () => {
+      setIsPageVisible(false);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [refreshConversations]);
+
+  const pollIntervalMs = getMessagesPollInterval({
+    isAuthenticated: Boolean(user),
+    isPageVisible,
+    hasActiveConversation: Boolean(selectedConvId),
+  });
+
+  useEffect(() => {
+    if (!pollIntervalMs || !user || !isPageVisible) return;
+
+    refreshConversations();
+    const intervalId = window.setInterval(() => {
+      refreshConversations();
+    }, pollIntervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [user, isPageVisible, pollIntervalMs, refreshConversations]);
+
   if (!user) return null;
 
   const getOtherId = (c: Conversation) => c.participants.find(p => p !== user.id) ?? '';
@@ -111,15 +163,16 @@ const Messages = () => {
     ? { id: 'new', participants: [user.id, tempConversation.receiverId], messages: [], productId: tempConversation.productId }
     : null);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-    if (selectedConvId === 'new' && tempConversation) {
-      sendMessage(tempConversation.receiverId, inputText, tempConversation.productId);
-    } else if (currentConv) {
-      sendMessage(getOtherId(currentConv), inputText, currentConv.productId);
-    }
+    const messageText = inputText;
     setInputText('');
+    if (selectedConvId === 'new' && tempConversation) {
+      await sendMessage(tempConversation.receiverId, messageText, tempConversation.productId);
+    } else if (currentConv) {
+      await sendMessage(getOtherId(currentConv), messageText, currentConv.productId);
+    }
   };
 
   const activeChatOtherId = activeChat

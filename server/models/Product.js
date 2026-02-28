@@ -37,6 +37,11 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  quantity: {
+    type: Number,
+    min: 0,
+    default: 1,
+  },
   ratings: [
     {
       userId: {
@@ -45,6 +50,11 @@ const productSchema = new mongoose.Schema({
       },
       rating: Number,
       review: String,
+      reviewImages: [
+        {
+          type: String,
+        },
+      ],
       createdAt: {
         type: Date,
         default: Date.now,
@@ -54,6 +64,10 @@ const productSchema = new mongoose.Schema({
   isApproved: {
     type: Boolean,
     default: false,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
   },
   createdAt: {
     type: Date,

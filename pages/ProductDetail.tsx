@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import Reviews from '../components/Reviews';
+import { hasUserPurchasedProduct } from '../lib/reviews';
 
 /* ── Tokens ── */
 const t = {
@@ -30,7 +31,7 @@ const conditionConfig: Record<string, { bg: string; color: string }> = {
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { products, addToCart, toggleWishlist, wishlist, user } = useStore();
+  const { products, addToCart, toggleWishlist, wishlist, user, orders } = useStore();
   const navigate = useNavigate();
   const product = products.find(p => p.id === id);
 
@@ -42,6 +43,8 @@ const ProductDetail = () => {
   const isOwnProduct  = user?.id === product?.seller?.id;
   const isAdmin       = user?.role === 'admin';
   const condition     = conditionConfig[product?.condition ?? ''] ?? { bg: '#F3F4F6', color: '#6B7280' };
+  const availableQuantity = Number(product?.quantity ?? (product?.inStock ? 1 : 0));
+  const hasPurchasedProduct = Boolean(user && id && hasUserPurchasedProduct(orders, id));
 
   /* ── Not found ── */
   if (!product) {
@@ -81,7 +84,10 @@ const ProductDetail = () => {
     navigate('/messages', { state: { sellerId: product.seller.id, productId: product.id, sellerName: product.seller.fullName || 'Seller' } });
   };
 
-  const increment = () => setQty(q => (typeof q === 'number' ? q + 1 : 1));
+  const increment = () => setQty(q => {
+    const current = typeof q === 'number' ? q : 1;
+    return current < availableQuantity ? current + 1 : current;
+  });
   const decrement = () => setQty(q => (typeof q === 'number' && q > 1 ? q - 1 : 1));
 
   const stars = Array.from({ length: 5 }, (_, i) => i < Math.floor(product.ratings));
@@ -218,6 +224,10 @@ const ProductDetail = () => {
               {product.description}
             </p>
 
+            <p style={{ fontSize: '0.82rem', color: t.muted, marginBottom: 20 }}>
+              {availableQuantity} unit{availableQuantity === 1 ? '' : 's'} available
+            </p>
+
             {/* Seller info */}
             <div style={{
               background: t.cream, border: `1px solid ${t.border}`,
@@ -272,7 +282,7 @@ const ProductDetail = () => {
                           const v = e.target.value;
                           if (v === '') { setQty(''); return; }
                           const n = parseInt(v);
-                          if (!isNaN(n) && n > 0) setQty(n);
+                          if (!isNaN(n) && n > 0) setQty(Math.min(n, availableQuantity));
                         }}
                         onBlur={() => { if (!qty || qty === '') setQty(1); }}
                         style={{
@@ -284,6 +294,7 @@ const ProductDetail = () => {
                       />
                       <button
                         onClick={increment}
+                        disabled={typeof qty === 'number' && qty >= availableQuantity}
                         style={{
                           width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
                           background: 'none', border: 'none', cursor: 'pointer', color: t.ink, transition: 'background 0.15s',
@@ -303,20 +314,20 @@ const ProductDetail = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <button
                     onClick={handleAddToCart}
-                    disabled={!product.inStock}
+                    disabled={!product.inStock || availableQuantity <= 0}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      background: cartPopped ? t.greenMid : product.inStock ? t.green : '#E5E7EB',
-                      color: product.inStock ? '#fff' : t.muted,
+                      background: cartPopped ? t.greenMid : (product.inStock && availableQuantity > 0) ? t.green : '#E5E7EB',
+                      color: (product.inStock && availableQuantity > 0) ? '#fff' : t.muted,
                       border: 'none', borderRadius: 12, padding: '15px',
                       fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '0.95rem',
-                      cursor: product.inStock ? 'pointer' : 'not-allowed',
-                      boxShadow: product.inStock ? '0 4px 16px rgba(27,67,50,0.25)' : 'none',
+                      cursor: (product.inStock && availableQuantity > 0) ? 'pointer' : 'not-allowed',
+                      boxShadow: (product.inStock && availableQuantity > 0) ? '0 4px 16px rgba(27,67,50,0.25)' : 'none',
                       transition: 'all 0.2s', transform: cartPopped ? 'scale(1.02)' : 'scale(1)',
                     }}
                   >
                     <ShoppingCart size={17} />
-                    {!product.inStock ? 'Out of Stock' : cartPopped ? 'Added to Cart ✓' : 'Add to Cart'}
+                    {!product.inStock || availableQuantity <= 0 ? 'Out of Stock' : cartPopped ? 'Added to Cart ✓' : 'Add to Cart'}
                   </button>
                   <button
                     onClick={handleChat}
@@ -351,7 +362,11 @@ const ProductDetail = () => {
           background: '#fff', border: `1.5px solid ${t.border}`,
           borderRadius: 24, padding: '36px 40px', margin: '24px 0 72px',
         }}>
-          <Reviews productId={product.id} />
+          <Reviews
+            productId={product.id}
+            sellerId={product.seller?.id}
+            canWriteReview={hasPurchasedProduct}
+          />
         </div>
       </div>
 

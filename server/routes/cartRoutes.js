@@ -1,22 +1,55 @@
 const express = require('express');
 const User = require('../models/User');
+const Product = require('../models/Product');
 const auth = require('../middleware/auth');
-const adminCheck = require('../middleware/adminCheck');
 
 const router = express.Router();
 
 // Add to cart
-router.post('/add', auth, adminCheck, async (req, res) => {
+router.post('/add', auth, async (req, res) => {
   try {
-    const { productId, quantity } = req.body;
+    const { productId } = req.body;
+    const quantity = Math.floor(Number(req.body.quantity || 1));
+
+    if (!productId) {
+      return res.status(400).json({ message: 'Product ID is required' });
+    }
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return res.status(400).json({ message: 'Quantity must be at least 1' });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    const availableStock = Number.isFinite(Number(product.quantity))
+      ? Math.max(0, Math.floor(Number(product.quantity)))
+      : (product.inStock ? 1 : 0);
+
+    if (availableStock <= 0 || product.inStock === false) {
+      return res.status(400).json({ message: 'This item is out of stock' });
+    }
 
     const user = await User.findById(req.user.userId);
 
     const existingItem = user.cart.find(item => item.productId.toString() === productId);
 
     if (existingItem) {
-      existingItem.quantity += quantity;
+      const nextQuantity = existingItem.quantity + quantity;
+      if (nextQuantity > availableStock) {
+        return res.status(400).json({
+          message: `Only ${availableStock} unit${availableStock === 1 ? '' : 's'} available for this item`,
+        });
+      }
+      existingItem.quantity = nextQuantity;
     } else {
+      if (quantity > availableStock) {
+        return res.status(400).json({
+          message: `Only ${availableStock} unit${availableStock === 1 ? '' : 's'} available for this item`,
+        });
+      }
       user.cart.push({ productId, quantity });
     }
 
@@ -29,7 +62,7 @@ router.post('/add', auth, adminCheck, async (req, res) => {
 });
 
 // Remove from cart
-router.post('/remove', auth, adminCheck, async (req, res) => {
+router.post('/remove', auth, async (req, res) => {
   try {
     const { productId } = req.body;
 
@@ -45,7 +78,7 @@ router.post('/remove', auth, adminCheck, async (req, res) => {
 });
 
 // Get cart
-router.get('/', auth, adminCheck, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).populate('cart.productId');
 

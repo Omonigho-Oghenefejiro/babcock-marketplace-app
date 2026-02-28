@@ -1,7 +1,8 @@
 const express = require('express');
+const crypto = require('crypto');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
-const adminCheck = require('../middleware/adminCheck');
+const { sendEmail } = require('../utils/notificationService');
 const {
   createAccessToken,
   createRefreshToken,
@@ -42,26 +43,53 @@ const issueAuthTokens = async (user, rotatingTokenHash = null) => {
 
 const toAuthUserPayload = (user) => ({
   id: user._id,
+  username: user.username,
   fullName: user.fullName,
   email: user.email,
+  phone: user.phone,
+  campusRole: user.campusRole,
   role: user.role,
+  isVerified: user.isVerified,
+  profileImage: user.profileImage,
 });
 
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { fullName, email, password, phone } = req.body;
+    const { fullName, email, password, phone, campusRole, profileImage, username } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email: normalizedEmail });
     if (user) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    const usernameBase = String(username || normalizedEmail.split('@')[0] || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, '')
+      .slice(0, 24);
+    let normalizedUsername = usernameBase || undefined;
+
+    if (normalizedUsername) {
+      let suffix = 0;
+      while (await User.findOne({ username: normalizedUsername })) {
+        suffix += 1;
+        const suffixText = String(suffix);
+        const base = usernameBase.slice(0, Math.max(1, 24 - suffixText.length));
+        normalizedUsername = `${base}${suffixText}`;
+      }
+    }
+
     user = new User({
       fullName,
-      email,
+      email: normalizedEmail,
+      username: normalizedUsername,
       password,
       phone,
+      profileImage,
+      campusRole,
+      isVerified: true,
     });
 
     await user.save();
@@ -79,12 +107,103 @@ router.post('/register', async (req, res) => {
   }
 });
 
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: String(email).toLowerCase() });
+    if (!user) {
+      return res.json({ message: 'If an account exists, reset instructions have been sent.' });
+    }
+
+    user.resetPasswordToken = crypto.randomBytes(24).toString('hex');
+    user.resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 30);
+    await user.save();
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Password reset request',
+      text: `Use this reset token within 30 minutes: ${user.resetPasswordToken}`,
+    });
+
+    return res.json({ message: 'If an account exists, reset instructions have been sent.' });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Reset token and new password are required' });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    return res.json({ message: 'Password reset successful' });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/reset-password-direct', async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ message: 'Email and new password are required' });
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(404).json({ message: 'No account found for this email' });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    return res.json({ message: 'Password reset successful' });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, identifier, password } = req.body;
+    const loginId = String(identifier || email || '').trim().toLowerCase();
 
-    const user = await User.findOne({ email });
+    if (!loginId) {
+      return res.status(400).json({ message: 'Email or username is required' });
+    }
+
+    const user = await User.findOne({
+      $or: [{ email: loginId }, { username: loginId }],
+    });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
@@ -171,7 +290,7 @@ router.post('/logout', async (req, res) => {
 });
 
 // Get user profile
-router.get('/profile', auth, adminCheck, async (req, res) => {
+router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId)
       .populate('wishlist')
@@ -188,13 +307,23 @@ router.get('/profile', auth, adminCheck, async (req, res) => {
 });
 
 // Update user profile
-router.put('/profile', auth, adminCheck, async (req, res) => {
+router.put('/profile', auth, async (req, res) => {
   try {
-    const { fullName, phone, profileImage } = req.body;
+    const { fullName, phone, profileImage, campusRole, username } = req.body;
+
+    const updates = { fullName, phone, profileImage, campusRole };
+    if (username) {
+      const normalizedUsername = String(username).trim().toLowerCase();
+      const existing = await User.findOne({ username: normalizedUsername, _id: { $ne: req.user.userId } });
+      if (existing) {
+        return res.status(400).json({ message: 'Username is already taken' });
+      }
+      updates.username = normalizedUsername;
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user.userId,
-      { fullName, phone, profileImage },
+      updates,
       { new: true }
     );
 
@@ -205,7 +334,7 @@ router.put('/profile', auth, adminCheck, async (req, res) => {
 });
 
 // Get wishlist
-router.get('/wishlist', auth, adminCheck, async (req, res) => {
+router.get('/wishlist', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).populate('wishlist');
     if (!user) {
@@ -218,7 +347,7 @@ router.get('/wishlist', auth, adminCheck, async (req, res) => {
 });
 
 // Toggle wishlist product
-router.post('/wishlist/toggle', auth, adminCheck, async (req, res) => {
+router.post('/wishlist/toggle', auth, async (req, res) => {
   try {
     const { productId } = req.body;
     const user = await User.findById(req.user.userId);

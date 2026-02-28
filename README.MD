@@ -49,9 +49,14 @@ MAX_REFRESH_TOKENS_PER_USER=5
 ```
 
 ### 4. Run the Application
-Start both the frontend and backend simultaneously:
+Start with backend health check and auto frontend launch:
 ```bash
 npm run dev
+```
+
+Frontend only (when backend is already running):
+```bash
+npm run frontend:dev
 ```
 
 ## 📜 License

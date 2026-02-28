@@ -11,12 +11,17 @@ import Cart from './pages/Cart.tsx';
 import Login from './pages/Login.tsx';
 import Register from './pages/Register.tsx';
 import AdminDashboard from './pages/AdminDashboard.tsx';
+import ForgotPassword from './pages/ForgotPassword.tsx';
+import ResetPassword from './pages/ResetPassword.tsx';
+import AdminInventory from './pages/AdminInventory.tsx';
+import AdminReports from './pages/AdminReports.tsx';
 import Wishlist from './pages/Wishlist.tsx';
 import UserDashboard from './pages/UserDashboard.tsx';
 import SellItem from './pages/SellItem.tsx';
 import Messages from './pages/Messages.tsx';
 import PaymentCallback from './pages/PaymentCallback.tsx';
 import PaymentSimulation from './pages/PaymentSimulation.tsx';
+import PurchasedItems from './pages/PurchasedItems.tsx';
 import AIAssistant from './components/AIAssistant';
 
 const ROUTES = [
@@ -27,12 +32,17 @@ const ROUTES = [
   { path: '/wishlist', element: <Wishlist /> },
   { path: '/login', element: <Login /> },
   { path: '/register', element: <Register /> },
+  { path: '/forgot-password', element: <ForgotPassword /> },
+  { path: '/reset-password', element: <ResetPassword /> },
   { path: '/admin', element: <AdminDashboard /> },
+  { path: '/admin/inventory', element: <AdminInventory /> },
+  { path: '/admin/reports', element: <AdminReports /> },
   { path: '/dashboard', element: <UserDashboard /> },
   { path: '/sell', element: <SellItem /> },
   { path: '/messages', element: <Messages /> },
   { path: '/pay', element: <PaymentSimulation /> },
   { path: '/payment/callback', element: <PaymentCallback /> },
+  { path: '/purchased-items', element: <PurchasedItems /> },
 ];
 
 const AnimatedRoutes = () => {
@@ -52,15 +62,16 @@ const AnimatedRoutes = () => {
 const AppContent = () => {
   const location = useLocation();
   const isHomePage = location.pathname === '/';
+  const isStandalonePaymentPage = location.pathname === '/pay' || location.pathname === '/payment/callback';
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <Navbar />
+      {!isStandalonePaymentPage && <Navbar />}
       <main className="flex-grow">
         <AnimatedRoutes />
       </main>
-      <AIAssistant />
-      {isHomePage && <Footer />}
+      {!isStandalonePaymentPage && <AIAssistant />}
+      {!isStandalonePaymentPage && isHomePage && <Footer />}
     </div>
   );
 };

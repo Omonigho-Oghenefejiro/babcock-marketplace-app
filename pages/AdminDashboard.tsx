@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, Shield, Users, Package,
   TrendingUp, Eye, CheckCircle,
@@ -33,9 +34,13 @@ const Fade = ({ children, delay = 0 }: { children: React.ReactNode; delay?: numb
 type Tab = 'overview' | 'products' | 'users';
 
 const AdminDashboard = () => {
-  const { user, products, allUsers } = useStore();
+  const { user, products, allUsers, updateProductStatus } = useStore();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [search,    setSearch]    = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
 
   /* ── Access guard ── */
   if (user?.role !== 'admin') {
@@ -80,8 +85,13 @@ const AdminDashboard = () => {
   /* ── Derived stats ── */
   const totalUsers    = allUsers?.length ?? 0;
   const totalProducts = products?.length ?? 0;
-  const activeListings = products?.filter((p: any) => p.inStock)?.length ?? 0;
-  const pendingProducts = products?.filter((p: any) => p.status === 'pending')?.length ?? 0;
+  const getProductStatus = (product: any) => {
+    if (product?.isApproved === false) return 'pending';
+    if (product?.isActive === false) return 'removed';
+    return 'active';
+  };
+  const activeListings = products?.filter((p: any) => getProductStatus(p) === 'active' && p.inStock)?.length ?? 0;
+  const pendingProducts = products?.filter((p: any) => getProductStatus(p) === 'pending')?.length ?? 0;
   const totalRevenue  = '₦2.4M'; // placeholder
 
   const statCards = [
@@ -127,6 +137,27 @@ const AdminDashboard = () => {
     u.name?.toLowerCase().includes(search.toLowerCase()) ||
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const formatDate = (value?: string) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
+  };
+
+  const handleProductAction = async (status: 'approved' | 'rejected') => {
+    if (!selectedProduct?.id || isUpdatingProduct) return;
+    setIsUpdatingProduct(true);
+    try {
+      await updateProductStatus(selectedProduct.id, status);
+      if (status === 'approved') {
+        setSelectedProduct((prev: any) => prev ? { ...prev, isApproved: true, isActive: true } : prev);
+      } else {
+        setSelectedProduct(null);
+      }
+    } finally {
+      setIsUpdatingProduct(false);
+    }
+  };
 
   return (
     <div style={{ background: t.cream, minHeight: '100vh', fontFamily: "'Instrument Sans', sans-serif" }}>
@@ -261,7 +292,7 @@ const AdminDashboard = () => {
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '0.85rem', color: t.green }}>₦{p.price?.toLocaleString()}</p>
-                        <StatusChip status={p.status ?? 'active'} />
+                        <StatusChip status={getProductStatus(p)} />
                       </div>
                     </div>
                   ))}
@@ -313,8 +344,8 @@ const AdminDashboard = () => {
                   {[
                     { emoji: '👥', label: 'Manage Users',     desc: 'View & moderate accounts',    action: () => setActiveTab('users')    },
                     { emoji: '📦', label: 'Review Products',  desc: 'Approve or remove listings',  action: () => setActiveTab('products') },
-                    { emoji: '📊', label: 'View Reports',     desc: 'Sales & traffic analytics',   action: () => {}                       },
-                    { emoji: '⚙️', label: 'Site Settings',    desc: 'Configure marketplace rules',  action: () => {}                       },
+                    { emoji: '📊', label: 'View Reports',     desc: 'Sales & traffic analytics',   action: () => navigate('/admin/reports') },
+                    { emoji: '📥', label: 'Inventory',        desc: 'Import stock and monitor low', action: () => navigate('/admin/inventory') },
                   ].map(a => (
                     <button
                       key={a.label}
@@ -411,7 +442,7 @@ const AdminDashboard = () => {
                           ₦{p.price?.toLocaleString()}
                         </td>
                         <td style={{ padding: '12px 16px' }}>
-                          <StatusChip status={p.status ?? 'active'} />
+                          <StatusChip status={getProductStatus(p)} />
                         </td>
                         <td style={{ padding: '12px 16px' }}>
                           <button style={{
@@ -421,6 +452,7 @@ const AdminDashboard = () => {
                             fontFamily: "'Instrument Sans', sans-serif", fontWeight: 600,
                             fontSize: '0.72rem', color: t.muted, cursor: 'pointer', transition: 'all 0.15s',
                           }}
+                            onClick={() => setSelectedProduct(p)}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = t.greenMid; e.currentTarget.style.color = t.greenMid; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.muted; }}
                           >
@@ -514,6 +546,7 @@ const AdminDashboard = () => {
                             fontFamily: "'Instrument Sans', sans-serif", fontWeight: 600,
                             fontSize: '0.72rem', color: t.muted, cursor: 'pointer', transition: 'all 0.15s',
                           }}
+                            onClick={() => setSelectedUser(u)}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = t.greenMid; e.currentTarget.style.color = t.greenMid; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.muted; }}
                           >
@@ -534,6 +567,118 @@ const AdminDashboard = () => {
           </Fade>
         )}
       </div>
+
+      {selectedProduct && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 70,
+          background: 'rgba(17,24,39,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 16,
+        }} onClick={() => !isUpdatingProduct && setSelectedProduct(null)}>
+          <div style={{
+            width: 'min(760px, 100%)', maxHeight: '90vh', overflowY: 'auto',
+            background: '#fff', borderRadius: 16, border: `1px solid ${t.border}`, padding: 20,
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.1rem', color: t.ink, marginBottom: 4 }}>
+                  {selectedProduct.title}
+                </h3>
+                <p style={{ color: t.muted, fontSize: '0.82rem' }}>{selectedProduct.category} • {selectedProduct.condition || 'Condition not set'}</p>
+              </div>
+              <button onClick={() => !isUpdatingProduct && setSelectedProduct(null)} style={{ background: 'none', border: `1px solid ${t.border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', color: t.muted }}>
+                Close
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 16 }} className="admin-grid">
+              <div style={{ width: '100%', height: 180, borderRadius: 12, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.cream }}>
+                {selectedProduct.images?.[0]
+                  ? <img src={selectedProduct.images[0]} alt={selectedProduct.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📦</div>
+                }
+              </div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <p style={{ fontSize: '0.88rem', color: t.ink, lineHeight: 1.5 }}>{selectedProduct.description || 'No description provided.'}</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ fontSize: '0.8rem', color: t.muted }}>Price: <strong style={{ color: t.green }}>₦{selectedProduct.price?.toLocaleString?.() || selectedProduct.price}</strong></div>
+                  <div style={{ fontSize: '0.8rem', color: t.muted }}>Quantity: <strong style={{ color: t.ink }}>{Number(selectedProduct.quantity ?? 0)}</strong></div>
+                  <div style={{ fontSize: '0.8rem', color: t.muted }}>In stock: <strong style={{ color: t.ink }}>{selectedProduct.inStock ? 'Yes' : 'No'}</strong></div>
+                  <div style={{ fontSize: '0.8rem', color: t.muted }}>Created: <strong style={{ color: t.ink }}>{formatDate(selectedProduct.createdAt)}</strong></div>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: t.muted }}>
+                  Seller: <strong style={{ color: t.ink }}>{selectedProduct.seller?.name || selectedProduct.seller?.fullName || 'Unknown'}</strong>
+                  {selectedProduct.seller?.email ? ` • ${selectedProduct.seller.email}` : ''}
+                  {selectedProduct.seller?.phone ? ` • ${selectedProduct.seller.phone}` : ''}
+                </div>
+                <div><StatusChip status={getProductStatus(selectedProduct)} /></div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+              {getProductStatus(selectedProduct) === 'pending' && (
+                <>
+                  <button
+                    disabled={isUpdatingProduct}
+                    onClick={() => handleProductAction('rejected')}
+                    style={{ border: '1px solid #FCA5A5', background: '#FEE2E2', color: '#991B1B', borderRadius: 10, padding: '8px 14px', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Reject
+                  </button>
+                  <button
+                    disabled={isUpdatingProduct}
+                    onClick={() => handleProductAction('approved')}
+                    style={{ border: '1px solid #86EFAC', background: t.green, color: '#fff', borderRadius: 10, padding: '8px 14px', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Approve Listing
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedUser && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 70,
+          background: 'rgba(17,24,39,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 16,
+        }} onClick={() => setSelectedUser(null)}>
+          <div style={{
+            width: 'min(620px, 100%)', maxHeight: '88vh', overflowY: 'auto',
+            background: '#fff', borderRadius: 16, border: `1px solid ${t.border}`, padding: 20,
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '1.1rem', color: t.ink }}>User Profile</h3>
+              <button onClick={() => setSelectedUser(null)} style={{ background: 'none', border: `1px solid ${t.border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', color: t.muted }}>Close</button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+              <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', border: `1px solid ${t.border}`, background: t.cream }}>
+                {selectedUser.profileImage
+                  ? <img src={selectedUser.profileImage} alt={selectedUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.green, color: '#fff', fontWeight: 800 }}>{selectedUser.name?.[0]?.toUpperCase() || 'U'}</div>
+                }
+              </div>
+              <div>
+                <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, color: t.ink }}>{selectedUser.name || selectedUser.fullName || 'User'}</p>
+                <p style={{ fontSize: '0.78rem', color: t.muted }}>{selectedUser.email}</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ fontSize: '0.82rem', color: t.muted }}>Username: <strong style={{ color: t.ink }}>{selectedUser.username || '—'}</strong></div>
+              <div style={{ fontSize: '0.82rem', color: t.muted }}>Role: <strong style={{ color: t.ink }}>{selectedUser.role || 'user'}</strong></div>
+              <div style={{ fontSize: '0.82rem', color: t.muted }}>Verified email: <strong style={{ color: t.ink }}>{selectedUser.isVerified ? 'Yes' : 'No'}</strong></div>
+              <div style={{ fontSize: '0.82rem', color: t.muted }}>Campus role: <strong style={{ color: t.ink }}>{selectedUser.campusRole || 'student'}</strong></div>
+              <div style={{ fontSize: '0.82rem', color: t.muted }}>Phone: <strong style={{ color: t.ink }}>{selectedUser.phone || '—'}</strong></div>
+              <div style={{ fontSize: '0.82rem', color: t.muted }}>Joined: <strong style={{ color: t.ink }}>{formatDate(selectedUser.createdAt)}</strong></div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr !important; } }

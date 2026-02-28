@@ -8,8 +8,9 @@ import { Button } from '../components/ui/button';
 
 const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
-  const { cart, clearCart } = useStore();
+  const { clearCart } = useStore();
   const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
+  const [confirmationMessage, setConfirmationMessage] = useState('');
   const processedRef = useRef(false);
 
   const reference = searchParams.get('reference');
@@ -20,32 +21,11 @@ const PaymentCallback = () => {
 
     const verifyPayment = async () => {
       try {
-        // 1. Verify on Backend
-        const { data: verifyData } = await API.get(`/payment/verify/${reference}`);
+        const { data: verifyData } = await API.get(`/payments/verify/${reference}`);
 
-        if (verifyData.status === 'success') {
-          // 2. Create Order
-          const orderData = {
-            orderItems: cart.map(item => ({
-                product: item.id,
-                title: item.title,
-              image: item.images?.[0] || '',
-                price: item.price,
-                quantity: item.quantity
-            })),
-            itemsPrice: cart.reduce((acc, item) => acc + item.price * item.quantity, 0),
-            taxPrice: 500,
-            totalPrice: cart.reduce((acc, item) => acc + item.price * item.quantity, 0) + 500,
-            paymentInfo: {
-              id: verifyData.paymentId,
-              status: 'paid',
-              reference: verifyData.reference
-            }
-          };
-
-          await API.post('/orders', orderData);
-          
-          clearCart();
+        if (verifyData?.paymentStatus === 'completed' || verifyData?.status === 'success') {
+          await clearCart();
+          setConfirmationMessage(verifyData?.message || 'Your payment has been confirmed and your order is now in Purchased Items.');
           setStatus('success');
         } else {
           setStatus('failed');
@@ -57,7 +37,7 @@ const PaymentCallback = () => {
     };
 
     verifyPayment();
-  }, [reference, cart, clearCart]);
+  }, [reference, clearCart]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4">
@@ -106,12 +86,15 @@ const PaymentCallback = () => {
               transition={{ delay: 0.5 }}
             >
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
-              <p className="text-gray-500 mb-8">Thank you for your purchase. Your order has been placed.</p>
+              <p className="text-gray-500 mb-3">Thank you for your purchase. Your order has been placed.</p>
+              <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-8">
+                {confirmationMessage}
+              </p>
               <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <Link to="/dashboard">
+                <Link to="/purchased-items">
                   <Button className="w-full sm:w-auto bg-gradient-to-r from-primary-700 to-primary-800 hover:from-primary-800 hover:to-primary-900 text-white px-8 py-3 rounded-full font-medium shadow-lg">
                     <CreditCard className="h-4 w-4 mr-2" />
-                    View Order
+                    Purchased Items
                   </Button>
                 </Link>
                 <Link to="/shop">

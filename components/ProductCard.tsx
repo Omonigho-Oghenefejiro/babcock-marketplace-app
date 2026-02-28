@@ -41,6 +41,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
   const mainImage = product.images?.[0] || 'https://placehold.co/400x400/E8E2D9/1A1A1A?text=No+Image';
   const condition = conditionConfig[product.condition] || { label: product.condition, bg: '#F3F4F6', color: '#6B7280' };
   const ratingValue = typeof product.ratings === 'number' ? product.ratings : Number(product.ratings) || 0;
+  const availableQty = Number(product.quantity ?? (product.inStock ? 1 : 0));
 
   const goToLogin = (msg: string) =>
     navigate('/login', { state: { from: `/product/${product.id}`, message: msg, pendingAction: { type: 'cart', productId: product.id } } });
@@ -87,7 +88,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
           </div>
           <div style={{ padding: '10px 12px' }}>
             <p style={{ fontWeight: 600, fontSize: '0.8rem', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginBottom: 2 }}>{product.title}</p>
-            <p style={{ fontSize: '0.7rem', color: t.muted, marginBottom: 6 }}>{product.category}</p>
+            <p style={{ fontSize: '0.7rem', color: t.muted, marginBottom: 2 }}>{product.category}</p>
+            <p style={{ fontSize: '0.68rem', color: t.muted, marginBottom: 6 }}>{availableQty} available</p>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '0.9rem', color: t.green }}>₦{product.price.toLocaleString()}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -273,9 +275,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
           fontSize: '0.78rem', color: t.muted, lineHeight: 1.6,
           overflow: 'hidden', display: '-webkit-box',
           WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-          marginBottom: 14,
+          marginBottom: 8,
         }}>
           {product.description}
+        </p>
+        <p style={{ fontSize: '0.72rem', color: t.muted, marginBottom: 12 }}>
+          {availableQty} available
         </p>
 
         {/* Price + Cart row */}
