@@ -3,6 +3,10 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
 
 const isBabcockEmail = (email) => String(email || '').toLowerCase().includes('babcock.edu.ng');
+const backendBaseUrl = String(
+  process.env.BACKEND_URL || 'https://babcock-marketplace-app-production.up.railway.app'
+).replace(/\/+$/, '');
+const googleCallbackUrl = `${backendBaseUrl}/api/auth/google/callback`;
 
 const configured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
@@ -12,7 +16,7 @@ if (configured && !passport._strategies.google) {
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: `${process.env.BACKEND_URL || 'https://babcock-marketplace-app-production.up.railway.app'}/api/auth/google/callback`,
+        callbackURL: googleCallbackUrl,
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
