@@ -19,7 +19,11 @@ const mapUser = (user: any) => ({
 const AuthCallback = () => {
   useEffect(() => {
     const finishLogin = async () => {
-      const params = new URLSearchParams(window.location.search);
+      // HashRouter keeps query params after # (e.g. #/auth/callback?token=...).
+      const hash = window.location.hash;
+      const queryIndex = hash.indexOf('?');
+      const search = queryIndex !== -1 ? hash.substring(queryIndex) : window.location.search;
+      const params = new URLSearchParams(search);
       const token = params.get('token');
       const refreshToken = params.get('refreshToken');
 
