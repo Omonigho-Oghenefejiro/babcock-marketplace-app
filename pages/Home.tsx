@@ -1,9 +1,9 @@
 import { motion, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   BookOpen, Laptop, Coffee, Shirt, Smartphone,
-  ArrowRight, Shield, Users, Clock, Star,
+  ArrowRight, ArrowUp, Shield, Users, Clock, Star,
   Flame, Zap, MapPin, Tag
 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
@@ -60,6 +60,18 @@ const Reveal = ({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
 const Home = () => {
   const { products } = useStore();
   const [activeTab, setActiveTab] = useState('featured');
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 420);
+    onScroll();
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const handleBackToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const featuredProducts  = products?.slice(0, 8)  || [];
   const trendingProducts  = products?.slice(0, 8).sort(() => Math.random() - 0.5) || [];
@@ -324,6 +336,34 @@ const Home = () => {
           </svg>
         </div>
       </section>
+
+      {showBackToTop && (
+        <button
+          onClick={handleBackToTop}
+          aria-label="Back to top"
+          style={{
+            position: 'fixed',
+            right: 20,
+            bottom: 22,
+            zIndex: 70,
+            border: `1.5px solid ${t.greenLight}`,
+            background: t.green,
+            color: '#fff',
+            borderRadius: 999,
+            padding: '10px 14px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            fontFamily: "'Syne', sans-serif",
+            cursor: 'pointer',
+            boxShadow: '0 10px 24px rgba(27,67,50,0.25)',
+          }}
+        >
+          <ArrowUp size={14} /> Back to top
+        </button>
+      )}
 
       {/* ════════════════════════════════
           CATEGORIES

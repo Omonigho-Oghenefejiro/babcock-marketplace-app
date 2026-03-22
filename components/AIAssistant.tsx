@@ -27,7 +27,6 @@ const AIAssistant = () => {
   ]);
 
   const listRef = useRef<HTMLDivElement>(null);
-  const hasKey = Boolean(import.meta.env.VITE_GEMINI_API_KEY);
   const bottomOffset = location.pathname === '/messages' ? 96 : 22;
 
   useEffect(() => {
@@ -45,14 +44,11 @@ const AIAssistant = () => {
     setIsLoading(true);
 
     try {
-      if (!hasKey) {
-        throw new Error('Missing VITE_GEMINI_API_KEY');
-      }
       const reply = await generateAssistantReply(nextMessages);
       setMessages((prev) => [...prev, { role: 'model', text: reply }]);
     } catch (error: any) {
       const msg = error?.message || 'Failed to get a response.';
-      setMessages((prev) => [...prev, { role: 'model', text: `Error: ${msg}` }]);
+      setMessages((prev) => [...prev, { role: 'model', text: String(msg) }]);
     } finally {
       setIsLoading(false);
     }
@@ -176,7 +172,7 @@ const AIAssistant = () => {
                     handleSend();
                   }
                 }}
-                placeholder={hasKey ? 'Ask about listings, pricing, or categories...' : 'Add VITE_GEMINI_API_KEY to enable'}
+                placeholder="Ask about listings, pricing, or categories..."
                 style={{
                   flex: 1,
                   border: `1.5px solid ${tokens.border}`,
@@ -186,7 +182,6 @@ const AIAssistant = () => {
                   outline: 'none',
                   fontFamily: "'Instrument Sans', sans-serif",
                 }}
-                disabled={!hasKey}
               />
               <button
                 onClick={handleSend}
@@ -201,17 +196,12 @@ const AIAssistant = () => {
                   justifyContent: 'center',
                   cursor: 'pointer',
                 }}
-                disabled={!hasKey || isLoading}
+                disabled={isLoading}
                 aria-label="Send message"
               >
                 <Send size={16} />
               </button>
             </div>
-            {!hasKey && (
-              <div style={{ marginTop: 6, fontSize: '0.7rem', color: tokens.muted }}>
-                Add VITE_GEMINI_API_KEY in your Vite env to enable responses.
-              </div>
-            )}
           </div>
         </div>
       )}

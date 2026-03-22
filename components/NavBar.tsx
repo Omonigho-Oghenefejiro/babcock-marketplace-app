@@ -77,28 +77,29 @@ const Navbar = () => {
     <>
       <FontLoader />
 
-      <div
-        style={{
-          background: tokens.green,
-          fontFamily: "'Instrument Sans', sans-serif",
-        }}
-        className="text-center text-xs py-2 px-4 text-white/80 tracking-wide"
-      >
-        🎓 Exclusively for Babcock University students — verify with your{' '}
-        <span className="text-amber-300 font-semibold">@babcock.edu.ng</span> email
-      </div>
+      <div className="fixed top-0 w-full z-50">
+        <div
+          style={{
+            background: tokens.green,
+            fontFamily: "'Instrument Sans', sans-serif",
+          }}
+          className="text-center text-xs py-2 px-4 text-white/80 tracking-wide"
+        >
+          🎓 Exclusively for Babcock University students — verify with your{' '}
+          <span className="text-amber-300 font-semibold">@babcock.edu.ng</span> email
+        </div>
 
-      <nav
-        style={{
-          background: isScrolled ? 'rgba(250,247,242,0.97)' : tokens.cream,
-          borderBottom: isScrolled ? '1px solid #E8E2D9' : '1px solid transparent',
-          backdropFilter: isScrolled ? 'blur(12px)' : 'none',
-          boxShadow: isScrolled ? '0 2px 20px rgba(27,67,50,0.06)' : 'none',
-          transition: 'all 0.25s ease',
-          fontFamily: "'Instrument Sans', sans-serif",
-        }}
-        className="fixed top-8 w-full z-50"
-      >
+        <nav
+          style={{
+            background: isScrolled ? 'rgba(250,247,242,0.97)' : tokens.cream,
+            borderBottom: isScrolled ? '1px solid #E8E2D9' : '1px solid transparent',
+            backdropFilter: isScrolled ? 'blur(12px)' : 'none',
+            boxShadow: isScrolled ? '0 2px 20px rgba(27,67,50,0.06)' : 'none',
+            transition: 'all 0.25s ease',
+            fontFamily: "'Instrument Sans', sans-serif",
+          }}
+          className="w-full"
+        >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
@@ -428,7 +429,8 @@ const Navbar = () => {
             </div>
           </div>
         </div>
-      </nav>
+        </nav>
+      </div>
 
       <>
         <div

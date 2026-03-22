@@ -100,9 +100,9 @@ const Login = () => {
   };
 
   const demoAccounts = [
-    { role: 'Student', email: 'student@babcock.edu.ng', emoji: '🎓' },
-    { role: 'Seller',  email: 'seller@babcock.edu.ng',  emoji: '🏪' },
-    { role: 'Admin',   email: 'admin@babcock.edu.ng',   emoji: '🔑' },
+    { role: 'Admin', email: 'admin@babcock.edu.ng', password: 'admin123', emoji: '🔑', note: 'Always available' },
+    { role: 'Seller', email: 'seller@babcock.edu.ng', password: 'password123', emoji: '🏪', note: 'Requires seeded data' },
+    { role: 'Buyer', email: 'buyer@babcock.edu.ng', password: 'password123', emoji: '🎓', note: 'Requires seeded data' },
   ];
 
   const panelStats = [
@@ -242,7 +242,11 @@ const Login = () => {
               {demoAccounts.map(acc => (
                 <button
                   key={acc.role}
-                  onClick={() => setEmail(acc.email)}
+                  title={acc.note}
+                  onClick={() => {
+                    setEmail(acc.email);
+                    setPassword(acc.password);
+                  }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
                     background: t.cream, border: `1.5px solid ${t.border}`,
@@ -257,6 +261,9 @@ const Login = () => {
                 </button>
               ))}
             </div>
+            <p style={{ fontSize: '0.72rem', color: t.muted, textAlign: 'center', marginTop: 10 }}>
+              Password auto-fills on click. Run <code>npm run seed</code> for seller/buyer demo accounts.
+            </p>
           </div>
 
           {/* Sign up link */}

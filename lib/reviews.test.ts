@@ -13,6 +13,11 @@ const buildOrder = (partial: Partial<Order>): Order => ({
 });
 
 describe('hasUserPurchasedProduct', () => {
+  it('returns false for undefined orders or empty productId', () => {
+    expect(hasUserPurchasedProduct(undefined, 'prod-1')).toBe(false);
+    expect(hasUserPurchasedProduct([], '')).toBe(false);
+  });
+
   it('returns false for empty orders', () => {
     expect(hasUserPurchasedProduct([], 'prod-1')).toBe(false);
   });
@@ -51,5 +56,17 @@ describe('hasUserPurchasedProduct', () => {
     ];
 
     expect(hasUserPurchasedProduct(orders, 'prod-1')).toBe(true);
+  });
+
+  it('returns false when completed order has no valid items array', () => {
+    const orders: Order[] = [
+      buildOrder({
+        paymentStatus: 'completed',
+        status: 'processing',
+        items: undefined as unknown as Order['items'],
+      }),
+    ];
+
+    expect(hasUserPurchasedProduct(orders, 'prod-1')).toBe(false);
   });
 });

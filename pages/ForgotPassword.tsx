@@ -72,6 +72,8 @@ const ForgotPassword = () => {
       setConfirmPassword('');
       setHumanInput('');
       setHumanCode(generateHumanCode());
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Unable to reset password. Please try again.');
     } finally {
       setLoading(false);
     }

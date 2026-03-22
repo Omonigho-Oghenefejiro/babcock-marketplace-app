@@ -10,10 +10,15 @@ const tokens = {
   muted: '#9CA3AF',
 };
 
+type FooterLink =
+  | { label: string; to: string }
+  | { label: string; href: string; external?: boolean };
+
 const Footer = () => {
   const year = new Date().getFullYear();
+  const supportVideoUrl = 'https://youtu.be/dQw4w9WgXcQ?si=CkaKZVjAk7cgOKNL';
 
-  const columns = [
+  const columns: Array<{ heading: string; links: FooterLink[] }> = [
     {
       heading: 'Marketplace',
       links: [
@@ -35,10 +40,10 @@ const Footer = () => {
     {
       heading: 'Support',
       links: [
-        { label: 'FAQ', to: '/faq' },
-        { label: 'Contact Us', to: '/contact' },
-        { label: 'Privacy Policy', to: '/privacy' },
-        { label: 'Terms of Service', to: '/terms' },
+        { label: 'FAQ', href: supportVideoUrl, external: true },
+        { label: 'Contact Us', href: 'mailto:meomonighooghenefejiro@gmail.com' },
+        { label: 'Privacy Policy', href: supportVideoUrl, external: true },
+        { label: 'Terms of Service', href: supportVideoUrl, external: true },
       ],
     },
   ];
@@ -158,20 +163,38 @@ const Footer = () => {
               </h4>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {col.links.map((link) => (
-                  <li key={link.to + link.label}>
-                    <Link
-                      to={link.to}
-                      style={{
-                        color: 'rgba(255,255,255,0.55)',
-                        fontSize: '0.875rem',
-                        transition: 'color 0.15s',
-                        textDecoration: 'none',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
-                    >
-                      {link.label}
-                    </Link>
+                  <li key={('to' in link ? link.to : link.href) + link.label}>
+                    {'to' in link ? (
+                      <Link
+                        to={link.to}
+                        style={{
+                          color: 'rgba(255,255,255,0.55)',
+                          fontSize: '0.875rem',
+                          transition: 'color 0.15s',
+                          textDecoration: 'none',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <a
+                        href={link.href}
+                        target={link.external ? '_blank' : undefined}
+                        rel={link.external ? 'noreferrer noopener' : undefined}
+                        style={{
+                          color: 'rgba(255,255,255,0.55)',
+                          fontSize: '0.875rem',
+                          transition: 'color 0.15s',
+                          textDecoration: 'none',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+                      >
+                        {link.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>

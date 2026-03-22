@@ -1,0 +1,59 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "test messageRoutes",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test",
+				"--",
+				"server/routes/messageRoutes.test.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "test messageRoutes rerun",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test",
+				"--",
+				"server/routes/messageRoutes.test.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "run messageRoutes test once",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test",
+				"--",
+				"server/routes/messageRoutes.test.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "probe task execution",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"\"probe2\" | Out-File -FilePath \"$env:TEMP\\copilot_probe2.txt\" -Encoding utf8"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "probe task cmd redirection",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"echo probe2 > %TEMP%\\copilot_probe2_cmd.txt"
+			],
+			"isBackground": false
+		}
+	]
+}

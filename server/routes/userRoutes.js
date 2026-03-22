@@ -13,7 +13,24 @@ const {
 
 const router = express.Router();
 
-const BABCOCK_EMAIL_REGEX = /^[a-z0-9._%+-]+@babcock\.edu\.ng$/i;
+const isBabcockEmail = (email) => {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized.includes('@')) {
+    return false;
+  }
+
+  const parts = normalized.split('@');
+  if (parts.length !== 2) {
+    return false;
+  }
+
+  const [localPart, domainPart] = parts;
+  if (!localPart || !domainPart || !domainPart.includes('.')) {
+    return false;
+  }
+
+  return domainPart.includes('babcock.edu.ng');
+};
 
 const issueAuthTokens = async (user, rotatingTokenHash = null) => {
   const accessToken = createAccessToken({ userId: user._id, role: user.role });
@@ -61,8 +78,8 @@ router.post('/register', async (req, res) => {
     const { fullName, email, password, phone, campusRole, profileImage, username } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    if (!BABCOCK_EMAIL_REGEX.test(normalizedEmail)) {
-      return res.status(400).json({ message: 'Please use a valid @babcock.edu.ng email address.' });
+    if (!isBabcockEmail(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please use a valid Babcock email address.' });
     }
 
     let user = await User.findOne({ email: normalizedEmail });
@@ -87,6 +104,9 @@ router.post('/register', async (req, res) => {
       }
     }
 
+    const verificationCode = String(crypto.randomInt(100000, 1000000));
+    const verificationExpiresAt = new Date(Date.now() + 1000 * 60 * 10);
+
     user = new User({
       fullName,
       email: normalizedEmail,
@@ -95,21 +115,67 @@ router.post('/register', async (req, res) => {
       phone,
       profileImage,
       campusRole,
-      isVerified: true,
+      isVerified: false,
+      emailVerificationCode: verificationCode,
+      emailVerificationExpires: verificationExpiresAt,
     });
 
     await user.save();
 
+    await sendEmail({
+      to: normalizedEmail,
+      subject: 'Your Babcock Marketplace verification code',
+      text: `Your verification code is ${verificationCode}. It expires in 10 minutes.`,
+    });
+
     const { accessToken, refreshToken } = await issueAuthTokens(user);
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: 'User registered successfully. Verification code sent to email.',
       token: accessToken,
       refreshToken,
       user: toAuthUserPayload(user),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedCode = String(code || '').trim();
+
+    if (!normalizedEmail || !normalizedCode) {
+      return res.status(400).json({ message: 'Email and verification code are required' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found for this email' });
+    }
+
+    if (!user.emailVerificationCode || !user.emailVerificationExpires) {
+      return res.status(400).json({ message: 'No active verification code for this account' });
+    }
+
+    if (new Date(user.emailVerificationExpires).getTime() <= Date.now()) {
+      return res.status(400).json({ message: 'Verification code has expired' });
+    }
+
+    if (String(user.emailVerificationCode) !== normalizedCode) {
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+
+    user.isVerified = true;
+    user.emailVerificationCode = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    return res.json({ message: 'Email verified successfully' });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
   }
 });
 

@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, X, ChevronDown, Search, SlidersHorizontal } from 'lucide-react';
+import { Filter, X, ChevronDown, Search, SlidersHorizontal, ArrowUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import BlurredProduct from '../components/BlurredProduct';
@@ -65,6 +65,7 @@ const Shop = () => {
   const [sortBy, setSortBy] = useState('default');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
@@ -101,6 +102,17 @@ const Shop = () => {
   };
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? 'Sort';
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 420);
+    onScroll();
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const handleBackToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   /* ── Filter sidebar content (shared between desktop + drawer) ── */
   const FilterContent = () => (
@@ -546,6 +558,34 @@ const Shop = () => {
           </button>
         </div>
       </>
+
+      {showBackToTop && (
+        <button
+          onClick={handleBackToTop}
+          aria-label="Back to top"
+          style={{
+            position: 'fixed',
+            right: 20,
+            bottom: 22,
+            zIndex: 70,
+            border: `1.5px solid ${t.greenLight}`,
+            background: t.green,
+            color: '#fff',
+            borderRadius: 999,
+            padding: '10px 14px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            fontFamily: "'Syne', sans-serif",
+            cursor: 'pointer',
+            boxShadow: '0 10px 24px rgba(27,67,50,0.25)',
+          }}
+        >
+          <ArrowUp size={14} /> Back to top
+        </button>
+      )}
 
     </div>
   );
