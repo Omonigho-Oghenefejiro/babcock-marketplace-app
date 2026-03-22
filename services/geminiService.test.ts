@@ -3,13 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('axios');
 
-const mockedAxios = vi.mocked(axios);
+const mockedAxios = axios as unknown as {
+  post: ReturnType<typeof vi.fn>;
+  isAxiosError: ReturnType<typeof vi.fn>;
+};
 
 const loadService = async () => import('./geminiService');
 
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  mockedAxios.isAxiosError?.mockReturnValue(false);
 });
 
 afterEach(() => {

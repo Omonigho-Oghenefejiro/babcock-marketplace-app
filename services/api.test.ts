@@ -5,7 +5,7 @@ const axiosMocks = vi.hoisted(() => {
   const responseFulfilledHandlers: Array<(response: any) => any> = [];
   const responseRejectedHandlers: Array<(error: any) => Promise<any>> = [];
 
-  const apiInstance = vi.fn((config: any) => Promise.resolve({ data: { ok: true }, config }));
+  const apiInstance: any = vi.fn((config: any) => Promise.resolve({ data: { ok: true }, config }));
   (apiInstance as any).interceptors = {
     request: {
       use: vi.fn((fulfilled: (config: any) => any) => {
@@ -216,10 +216,10 @@ describe('api interceptors', () => {
   itWithTimeout('uses a shared refresh promise for concurrent 401 failures', async () => {
     sessionStorageMock.setItem('refreshToken', 'refresh-2');
 
-    let resolveRefresh: ((value: any) => void) | null = null;
+    let resolveRefresh: ((value: any) => void) | undefined;
     axiosMocks.post.mockImplementationOnce(
       () =>
-        new Promise((resolve) => {
+        new Promise<any>((resolve) => {
           resolveRefresh = resolve;
         })
     );
@@ -236,9 +236,11 @@ describe('api interceptors', () => {
     const promise2 = responseRejected({ response: { status: 401 }, config: req2 });
 
     expect(axiosMocks.post).toHaveBeenCalledTimes(1);
-    expect(resolveRefresh).not.toBeNull();
+    expect(resolveRefresh).toBeTypeOf('function');
 
-    resolveRefresh?.({ data: { token: 'shared-access' } });
+    if (resolveRefresh) {
+      resolveRefresh({ data: { token: 'shared-access' } });
+    }
 
     await Promise.all([promise1, promise2]);
 

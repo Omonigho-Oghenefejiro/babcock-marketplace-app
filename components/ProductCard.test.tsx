@@ -189,7 +189,7 @@ describe('ProductCard', () => {
     const compactFallbackProduct: Product = {
       ...baseProduct,
       images: [],
-      condition: 'Refurbished',
+      condition: 'Fair',
       ratings: 'not-a-number' as any,
       quantity: undefined,
       inStock: false,

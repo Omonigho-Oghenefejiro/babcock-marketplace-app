@@ -1,4 +1,3 @@
-import React from 'react';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StoreProvider, useStore } from './StoreContext';
