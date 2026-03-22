@@ -10,27 +10,31 @@ const { startSummaryScheduler } = require('./utils/summaryScheduler');
 const app = express();
 
 // CORS configuration
-const defaultAllowedOrigins = [
+const envAllowedOrigins = String(process.env.CORS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const explicitAllowedOrigins = new Set([
   'http://localhost:3000',
   'http://localhost:3001',
   'https://babcock-marketplace-app.vercel.app',
   'https://www.babcock-marketplace-app.vercel.app',
-];
-const envAllowedOrigins = String(process.env.CORS_ALLOWED_ORIGINS || '')
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(Boolean);
-const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envAllowedOrigins]));
+  ...envAllowedOrigins,
+]);
 
-const vercelPreviewOriginPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+const vercelOriginPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (explicitAllowedOrigins.has(origin)) return true;
+  if (vercelOriginPattern.test(origin)) return true;
+  return false;
+};
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) {
-      return callback(null, true);
-    }
-
-    if (allowedOrigins.includes(origin) || vercelPreviewOriginPattern.test(origin)) {
+    if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
 
@@ -38,10 +42,10 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
-if (!allowedOrigins.length) {
+if (!explicitAllowedOrigins.size) {
   logger.warn('No CORS origins configured. Browser requests with an Origin header will be blocked.');
 }
 
