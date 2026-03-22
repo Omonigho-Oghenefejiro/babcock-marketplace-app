@@ -20,6 +20,15 @@ const t = {
   errorBg:    '#FEF2F2',
 };
 
+const DEFAULT_API_BASE_URL = 'https://babcock-marketplace-app-production.up.railway.app/api';
+const resolveGoogleAuthUrl = () => {
+  const configuredBase = String(import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+  if (/\/api$/i.test(configuredBase)) {
+    return `${configuredBase}/auth/google`;
+  }
+  return `${configuredBase}/api/auth/google`;
+};
+
 /* ── Small input component ── */
 const Field = ({
   label, type = 'text', value, onChange, placeholder, icon: Icon,
@@ -82,8 +91,15 @@ const Login = () => {
   const navigate  = useNavigate();
   const location  = useLocation();
 
-  const from    = getSafeInternalRedirectPath((location.state as any)?.from, '/');
-  const message = (location.state as any)?.message;
+  const from          = getSafeInternalRedirectPath((location.state as any)?.from, '/');
+  const stateMessage  = (location.state as any)?.message;
+  const queryMessage  = new URLSearchParams(location.search).get('error');
+  const message = stateMessage || {
+    google_failed: 'Google sign-in failed. Please try again.',
+    google_not_configured: 'Google sign-in is not configured yet. Contact support.',
+    google_profile_failed: 'Signed in but failed to load profile. Please retry.',
+    server_error: 'A server error occurred during Google sign-in.',
+  }[String(queryMessage || '')];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +113,10 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = resolveGoogleAuthUrl();
   };
 
   const demoAccounts = [
@@ -230,6 +250,30 @@ const Login = () => {
               ) : (
                 <> Sign In <ArrowRight size={16} /> </>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              style={{
+                width: '100%',
+                padding: '11px',
+                border: `1.5px solid ${t.border}`,
+                borderRadius: 12,
+                background: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: t.ink,
+                fontFamily: "'Instrument Sans', sans-serif",
+              }}
+            >
+              <img src="https://www.google.com/favicon.ico" width={18} height={18} alt="Google" />
+              Continue with Google
             </button>
           </form>
 

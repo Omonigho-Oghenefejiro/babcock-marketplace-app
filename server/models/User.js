@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: false,
   },
   role: {
     type: String,
@@ -38,6 +38,10 @@ const userSchema = new mongoose.Schema({
   },
   profileImage: {
     type: String,
+  },
+  googleId: {
+    type: String,
+    sparse: true,
   },
   isVerified: {
     type: Boolean,
@@ -94,7 +98,7 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
 
@@ -105,6 +109,9 @@ userSchema.pre('save', async function (next) {
 
 // Compare password method
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) {
+    return false;
+  }
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

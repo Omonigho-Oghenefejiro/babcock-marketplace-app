@@ -33,7 +33,7 @@ describe('server User model', () => {
 
     expect(missingErr?.errors.fullName).toBeTruthy();
     expect(missingErr?.errors.email).toBeTruthy();
-    expect(missingErr?.errors.password).toBeTruthy();
+    expect(missingErr?.errors.password).toBeFalsy();
   });
 
   it('returns early from pre-save hook when password is unchanged', async () => {

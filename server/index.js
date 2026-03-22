@@ -2,10 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const session = require('express-session');
+const passport = require('passport');
 const path = require('path');
 const logger = require('./utils/logger');
 const ensureDefaultAdmin = require('./utils/ensureDefaultAdmin');
 const { startSummaryScheduler } = require('./utils/summaryScheduler');
+require('./utils/googleAuth');
 
 const app = express();
 
@@ -52,6 +55,13 @@ if (!explicitAllowedOrigins.size) {
 // Middleware
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback_secret',
+  resave: false,
+  saveUninitialized: false,
+}));
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(express.json());
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

@@ -1,8 +1,10 @@
 const express = require('express');
 const crypto = require('crypto');
+const passport = require('passport');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { sendEmail } = require('../utils/notificationService');
+const { isGoogleAuthConfigured } = require('../utils/googleAuth');
 const {
   createAccessToken,
   createRefreshToken,
@@ -12,6 +14,7 @@ const {
 } = require('../utils/authTokens');
 
 const router = express.Router();
+const frontendRedirectBase = String(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
 const isBabcockEmail = (email) => {
   const normalized = String(email || '').trim().toLowerCase();
@@ -446,5 +449,47 @@ router.post('/wishlist/toggle', auth, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+router.get('/google', (req, res, next) => {
+  if (!isGoogleAuthConfigured) {
+    return res.status(503).json({ message: 'Google login is not configured on this server.' });
+  }
+
+  return passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'select_account',
+    session: false,
+  })(req, res, next);
+});
+
+router.get(
+  '/google/callback',
+  (req, res, next) => {
+    if (!isGoogleAuthConfigured) {
+      return res.redirect(`${frontendRedirectBase}/#/login?error=google_not_configured`);
+    }
+
+    return passport.authenticate('google', {
+      session: false,
+      failureRedirect: `${frontendRedirectBase}/#/login?error=google_failed`,
+    })(req, res, next);
+  },
+  async (req, res) => {
+    try {
+      const user = req.user;
+      const { accessToken, refreshToken } = await issueAuthTokens(user);
+
+      const params = new URLSearchParams({
+        token: accessToken,
+        refreshToken,
+        userId: String(user._id),
+      });
+
+      return res.redirect(`${frontendRedirectBase}/#/auth/callback?${params.toString()}`);
+    } catch (err) {
+      return res.redirect(`${frontendRedirectBase}/#/login?error=server_error`);
+    }
+  }
+);
 
 module.exports = router;
