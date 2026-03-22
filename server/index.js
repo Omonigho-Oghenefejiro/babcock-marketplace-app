@@ -83,7 +83,12 @@ app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/support', require('./routes/supportRoutes'));
-app.use('/api/ai', require('./routes/aiRoutes'));
+try {
+  // Keep core APIs available even if optional AI route is unavailable in a stale deploy.
+  app.use('/api/ai', require('./routes/aiRoutes'));
+} catch (err) {
+  logger.warn('AI routes unavailable; continuing without /api/ai', { error: err.message });
+}
 
 // Health check
 app.get('/api/health', (req, res) => {
