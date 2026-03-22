@@ -43,7 +43,7 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'https://babcock-marketplace-app-production.up.railway.app/api').replace(/\/api\/?$/, '');
 
 const getAverageRating = (ratings: unknown): number => {
   if (typeof ratings === 'number') return ratings;

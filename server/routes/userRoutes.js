@@ -13,6 +13,8 @@ const {
 
 const router = express.Router();
 
+const BABCOCK_EMAIL_REGEX = /^[a-z0-9._%+-]+@babcock\.edu\.ng$/i;
+
 const issueAuthTokens = async (user, rotatingTokenHash = null) => {
   const accessToken = createAccessToken({ userId: user._id, role: user.role });
   const refreshToken = createRefreshToken();
@@ -58,6 +60,10 @@ router.post('/register', async (req, res) => {
   try {
     const { fullName, email, password, phone, campusRole, profileImage, username } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    if (!BABCOCK_EMAIL_REGEX.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please use a valid @babcock.edu.ng email address.' });
+    }
 
     let user = await User.findOne({ email: normalizedEmail });
     if (user) {

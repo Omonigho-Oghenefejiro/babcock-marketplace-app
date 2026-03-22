@@ -10,7 +10,11 @@ const { startSummaryScheduler } = require('./utils/summaryScheduler');
 const app = express();
 
 // CORS configuration
-const defaultAllowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+const defaultAllowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://babcock-marketplace-app.vercel.app',
+];
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || defaultAllowedOrigins.join(','))
   .split(',')
   .map(origin => origin.trim())
@@ -70,6 +74,7 @@ app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/support', require('./routes/supportRoutes'));
+app.use('/api/ai', require('./routes/aiRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {

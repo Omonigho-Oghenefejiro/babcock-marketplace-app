@@ -20,6 +20,7 @@ const t = {
 };
 
 const generateHumanCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+const BABCOCK_EMAIL_REGEX = /^[a-z0-9._%+-]+@babcock\.edu\.ng$/i;
 
 /* ── Field component ── */
 const Field = ({
@@ -121,8 +122,10 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     if (!name.trim())                           return setError('Please enter your full name.');
-    if (!email.includes('@babcock.edu.ng'))     return setError('Please use your @babcock.edu.ng email address.');
+    if (!BABCOCK_EMAIL_REGEX.test(normalizedEmail)) return setError('Please use a valid @babcock.edu.ng email address.');
     if (password.length < 6)                   return setError('Password must be at least 6 characters.');
     if (password !== confirmPw)                return setError('Passwords do not match.');
     if (humanInput.trim().toUpperCase() !== humanCode) return setError('Please type the human-check code correctly.');
@@ -130,7 +133,7 @@ const Register = () => {
 
     setLoading(true);
     try {
-      await register(name, email, password, phone, profileImage, username);
+      await register(name, normalizedEmail, password, phone, profileImage, username);
       navigate('/', { replace: true });
     } catch {
       setError('Registration failed. Please try again.');

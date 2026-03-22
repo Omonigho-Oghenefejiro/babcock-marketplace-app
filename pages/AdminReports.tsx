@@ -32,12 +32,14 @@ const AdminReports = () => {
     [data]
   );
 
+  const apiBaseUrl = (API as any)?.defaults?.baseURL || 'https://babcock-marketplace-app-production.up.railway.app/api';
+
   const exportCsv = () => {
-    window.location.href = `${(import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/admin/reports/sales/export`;
+    window.location.href = `${apiBaseUrl}/admin/reports/sales/export`;
   };
 
   const exportPdf = () => {
-    window.location.href = `${(import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/admin/reports/sales/export-pdf`;
+    window.location.href = `${apiBaseUrl}/admin/reports/sales/export-pdf`;
   };
 
   const sendSummary = async (period: 'daily' | 'weekly') => {
