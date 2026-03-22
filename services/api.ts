@@ -1,7 +1,19 @@
 import axios from 'axios';
 
 const DEFAULT_API_BASE_URL = 'https://babcock-marketplace-app-production.up.railway.app/api';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
+const normalizeApiBaseUrl = (raw: string) => {
+  let value = String(raw || '').trim();
+  if (!/^https?:\/\//i.test(value)) {
+    value = `https://${value.replace(/^\/+/, '')}`;
+  }
+  value = value.replace(/\/+$/, '');
+  if (!/\/api$/i.test(value)) {
+    value = `${value}/api`;
+  }
+  return value;
+};
+
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL);
 
 const getAccessToken = () => sessionStorage.getItem('token') || localStorage.getItem('token');
 const getRefreshToken = () => sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
