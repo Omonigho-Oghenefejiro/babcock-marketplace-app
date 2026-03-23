@@ -19,7 +19,7 @@ const t = {
   errorBg:    '#FEF2F2',
 };
 
-const BABCOCK_EMAIL_REGEX = /^[a-z0-9._%+-]+@babcock\.edu\.ng$/i;
+const BABCOCK_EMAIL_REGEX = /[a-z0-9._%+-]+@[a-z0-9.-]*babcock\.edu\.ng$/i;
 
 /* ── Field component ── */
 const Field = ({
