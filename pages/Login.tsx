@@ -119,11 +119,7 @@ const Login = () => {
     window.location.href = resolveGoogleAuthUrl();
   };
 
-  const demoAccounts = [
-    { role: 'Admin', email: 'admin@babcock.edu.ng', password: 'admin123', emoji: '🔑', note: 'Always available' },
-    { role: 'Seller', email: 'seller@babcock.edu.ng', password: 'password123', emoji: '🏪', note: 'Requires seeded data' },
-    { role: 'Buyer', email: 'buyer@babcock.edu.ng', password: 'password123', emoji: '🎓', note: 'Requires seeded data' },
-  ];
+
 
   const panelStats = [
     { value: '2,500+', label: 'Verified students',   emoji: '👥' },
@@ -277,38 +273,7 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Demo accounts */}
-          <div style={{ marginTop: 28 }}>
-            <p style={{ fontSize: '0.75rem', color: t.muted, textAlign: 'center', marginBottom: 10 }}>
-              — Demo accounts (click to fill) —
-            </p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-              {demoAccounts.map(acc => (
-                <button
-                  key={acc.role}
-                  title={acc.note}
-                  onClick={() => {
-                    setEmail(acc.email);
-                    setPassword(acc.password);
-                  }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    background: t.cream, border: `1.5px solid ${t.border}`,
-                    borderRadius: 99, padding: '6px 12px', cursor: 'pointer',
-                    fontFamily: "'Instrument Sans', sans-serif", fontWeight: 600,
-                    fontSize: '0.75rem', color: t.ink, transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = t.greenMid; e.currentTarget.style.background = t.greenPale; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.cream; }}
-                >
-                  {acc.emoji} {acc.role}
-                </button>
-              ))}
-            </div>
-            <p style={{ fontSize: '0.72rem', color: t.muted, textAlign: 'center', marginTop: 10 }}>
-              Password auto-fills on click. Run <code>npm run seed</code> for seller/buyer demo accounts.
-            </p>
-          </div>
+
 
           {/* Sign up link */}
           <p style={{ textAlign: 'center', fontSize: '0.85rem', color: t.muted, marginTop: 24 }}>
