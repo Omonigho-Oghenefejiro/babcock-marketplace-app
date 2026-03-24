@@ -15,6 +15,23 @@ const {
 
 const router = express.Router();
 const frontendRedirectBase = String(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+const backendPublicBase = String(process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
+
+const buildFrontendLoginRedirect = (params = {}) => {
+  const search = new URLSearchParams(params).toString();
+  return `${frontendRedirectBase}/#/login${search ? `?${search}` : ''}`;
+};
+
+const buildVerificationLink = (email, code) => (
+  `${backendPublicBase}/api/auth/verify-email-link?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`
+);
+
+const consumeEmailVerification = async (user) => {
+  user.isVerified = true;
+  user.emailVerificationCode = undefined;
+  user.emailVerificationExpires = undefined;
+  await user.save();
+};
 
 const isBabcockEmail = (email) => {
   const normalized = String(email || '').trim().toLowerCase();
@@ -125,22 +142,57 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
+    const verificationLink = buildVerificationLink(normalizedEmail, verificationCode);
+
     await sendEmail({
       to: normalizedEmail,
-      subject: 'Your Babcock Marketplace verification code',
-      text: `Your verification code is ${verificationCode}. It expires in 10 minutes.`,
+      subject: 'Verify your Babcock Marketplace account',
+      text: `Your verification code is ${verificationCode}. It expires in 10 minutes.\n\nOr click this verification link:\n${verificationLink}`,
     });
 
     const { accessToken, refreshToken } = await issueAuthTokens(user);
 
     res.status(201).json({
-      message: 'User registered successfully. Verification code sent to email.',
+      message: 'User registered successfully. Verification email sent.',
       token: accessToken,
       refreshToken,
       user: toAuthUserPayload(user),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/verify-email-link', async (req, res) => {
+  try {
+    const normalizedEmail = String(req.query.email || '').trim().toLowerCase();
+    const normalizedCode = String(req.query.code || '').trim();
+
+    if (!normalizedEmail || !normalizedCode) {
+      return res.redirect(buildFrontendLoginRedirect({ verify: 'invalid' }));
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user || !user.emailVerificationCode || !user.emailVerificationExpires) {
+      return res.redirect(buildFrontendLoginRedirect({ verify: 'invalid' }));
+    }
+
+    if (user.isVerified) {
+      return res.redirect(buildFrontendLoginRedirect({ verify: 'success' }));
+    }
+
+    if (new Date(user.emailVerificationExpires).getTime() <= Date.now()) {
+      return res.redirect(buildFrontendLoginRedirect({ verify: 'expired' }));
+    }
+
+    if (String(user.emailVerificationCode) !== normalizedCode) {
+      return res.redirect(buildFrontendLoginRedirect({ verify: 'invalid' }));
+    }
+
+    await consumeEmailVerification(user);
+    return res.redirect(buildFrontendLoginRedirect({ verify: 'success' }));
+  } catch (err) {
+    return res.redirect(buildFrontendLoginRedirect({ verify: 'failed' }));
   }
 });
 
@@ -171,10 +223,7 @@ router.post('/verify-email', async (req, res) => {
       return res.status(400).json({ message: 'Invalid verification code' });
     }
 
-    user.isVerified = true;
-    user.emailVerificationCode = undefined;
-    user.emailVerificationExpires = undefined;
-    await user.save();
+    await consumeEmailVerification(user);
 
     return res.json({ message: 'Email verified successfully' });
   } catch (err) {

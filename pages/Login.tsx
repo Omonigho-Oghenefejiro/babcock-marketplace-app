@@ -93,13 +93,19 @@ const Login = () => {
 
   const from          = getSafeInternalRedirectPath((location.state as any)?.from, '/');
   const stateMessage  = (location.state as any)?.message;
-  const queryMessage  = new URLSearchParams(location.search).get('error');
+  const queryParams = new URLSearchParams(location.search);
+  const queryError = queryParams.get('error');
+  const verifyStatus = queryParams.get('verify');
   const message = stateMessage || {
+    success: 'Email verified successfully. You can sign in now.',
+    expired: 'Verification link has expired. Please request a new verification email.',
+    invalid: 'Invalid verification link. Please use the latest link from your email.',
+    failed: 'Verification failed. Please try again.',
     google_failed: 'Google sign-in failed. Please try again.',
     google_not_configured: 'Google sign-in is not configured yet. Contact support.',
     google_profile_failed: 'Signed in but failed to load profile. Please retry.',
     server_error: 'A server error occurred during Google sign-in.',
-  }[String(queryMessage || '')];
+  }[String(verifyStatus || queryError || '')];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

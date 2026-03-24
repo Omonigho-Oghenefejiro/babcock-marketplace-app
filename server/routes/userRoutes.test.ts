@@ -23,6 +23,7 @@ const createRes = () => {
   const res: any = {};
   res.status = vi.fn(() => res);
   res.json = vi.fn(() => res);
+  res.redirect = vi.fn(() => res);
   return res;
 };
 
@@ -68,7 +69,8 @@ describe('server userRoutes verification flow', () => {
     expect(sendEmailSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'omonigho-okoro8673@student.babcock.edu.ng',
-        subject: expect.stringContaining('verification code'),
+        subject: expect.stringContaining('Verify your Babcock Marketplace account'),
+        text: expect.stringContaining('/api/auth/verify-email-link?'),
       })
     );
 
@@ -80,7 +82,7 @@ describe('server userRoutes verification flow', () => {
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: expect.stringContaining('Verification code sent'),
+        message: expect.stringContaining('Verification email sent'),
       })
     );
   });
@@ -168,5 +170,69 @@ describe('server userRoutes verification flow', () => {
     expect(userDoc.save).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid verification code' });
+  });
+
+  it('verify-email-link verifies account and redirects to login success', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const userDoc = {
+      email: 'student@babcock.edu.ng',
+      isVerified: false,
+      emailVerificationCode: '123456',
+      emailVerificationExpires: new Date(Date.now() + 60_000),
+      save,
+    };
+
+    vi.spyOn(User, 'findOne').mockResolvedValue(userDoc);
+
+    const router = loadRouter();
+    const verifyEmailLink = getRouteHandler(router, 'get', '/verify-email-link');
+
+    const req: any = {
+      query: {
+        email: 'student@babcock.edu.ng',
+        code: '123456',
+      },
+    };
+    const res = createRes();
+
+    await verifyEmailLink(req, res);
+
+    expect(userDoc.isVerified).toBe(true);
+    expect(userDoc.emailVerificationCode).toBeUndefined();
+    expect(userDoc.emailVerificationExpires).toBeUndefined();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(res.redirect).toHaveBeenCalledWith(
+      expect.stringContaining('/#/login?verify=success')
+    );
+  });
+
+  it('verify-email-link rejects expired codes and redirects', async () => {
+    const userDoc = {
+      email: 'student@babcock.edu.ng',
+      isVerified: false,
+      emailVerificationCode: '123456',
+      emailVerificationExpires: new Date(Date.now() - 60_000),
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+
+    vi.spyOn(User, 'findOne').mockResolvedValue(userDoc);
+
+    const router = loadRouter();
+    const verifyEmailLink = getRouteHandler(router, 'get', '/verify-email-link');
+
+    const req: any = {
+      query: {
+        email: 'student@babcock.edu.ng',
+        code: '123456',
+      },
+    };
+    const res = createRes();
+
+    await verifyEmailLink(req, res);
+
+    expect(userDoc.save).not.toHaveBeenCalled();
+    expect(res.redirect).toHaveBeenCalledWith(
+      expect.stringContaining('/#/login?verify=expired')
+    );
   });
 });
