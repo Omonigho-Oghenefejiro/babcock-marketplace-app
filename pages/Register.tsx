@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, User, Phone } from 'lucide-react';
+import type { AxiosError } from 'axios';
 import { useStore } from '../contexts/StoreContext';
 
 /* ── Tokens ── */
@@ -141,8 +142,9 @@ const Register = () => {
     try {
       await register(name, normalizedEmail, password, phone, '', username);
       navigate('/', { replace: true });
-    } catch {
-      setError('Registration failed. Please try again.');
+    } catch (err) {
+      const message = (err as AxiosError<{ message?: string }>)?.response?.data?.message;
+      setError(message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
