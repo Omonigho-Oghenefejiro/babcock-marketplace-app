@@ -235,4 +235,67 @@ describe('server userRoutes verification flow', () => {
       expect.stringContaining('/#/login?verify=expired')
     );
   });
+
+  it('resend-verification sends a new verification email for unverified users', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const userDoc = {
+      email: 'student@babcock.edu.ng',
+      isVerified: false,
+      emailVerificationCode: '123456',
+      emailVerificationExpires: new Date(Date.now() + 60_000),
+      save,
+    };
+
+    const sendEmailSpy = vi.spyOn(notificationService, 'sendEmail').mockResolvedValue({ sent: true });
+    vi.spyOn(User, 'findOne').mockResolvedValue(userDoc);
+
+    const router = loadRouter();
+    const resendVerification = getRouteHandler(router, 'post', '/resend-verification');
+
+    const req: any = {
+      body: {
+        email: 'student@babcock.edu.ng',
+      },
+    };
+    const res = createRes();
+
+    await resendVerification(req, res);
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(sendEmailSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'student@babcock.edu.ng',
+        subject: expect.stringContaining('Verify your Babcock Marketplace account'),
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith({ message: 'Verification email resent. Check your inbox.' });
+  });
+
+  it('resend-verification rejects already verified users', async () => {
+    const userDoc = {
+      email: 'student@babcock.edu.ng',
+      isVerified: true,
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const sendEmailSpy = vi.spyOn(notificationService, 'sendEmail').mockResolvedValue({ sent: true });
+    vi.spyOn(User, 'findOne').mockResolvedValue(userDoc);
+
+    const router = loadRouter();
+    const resendVerification = getRouteHandler(router, 'post', '/resend-verification');
+
+    const req: any = {
+      body: {
+        email: 'student@babcock.edu.ng',
+      },
+    };
+    const res = createRes();
+
+    await resendVerification(req, res);
+
+    expect(sendEmailSpy).not.toHaveBeenCalled();
+    expect(userDoc.save).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Account is already verified. Please sign in.' });
+  });
 });

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, User, Phone } from 'lucide-react';
 import type { AxiosError } from 'axios';
 import { useStore } from '../contexts/StoreContext';
+import API from '../services/api';
 
 /* ── Tokens ── */
 const t = {
@@ -122,6 +123,9 @@ const Register = () => {
   const [agreed, setAgreed]         = useState(false);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
+  const [info, setInfo]             = useState('');
+  const [canResendVerification, setCanResendVerification] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
 
   const { register } = useStore();
   const navigate  = useNavigate();
@@ -129,6 +133,8 @@ const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfo('');
+    setCanResendVerification(false);
 
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -144,9 +150,33 @@ const Register = () => {
       navigate('/', { replace: true });
     } catch (err) {
       const message = (err as AxiosError<{ message?: string }>)?.response?.data?.message;
-      setError(message || 'Registration failed. Please try again.');
+      const nextMessage = message || 'Registration failed. Please try again.';
+      setError(nextMessage);
+      setCanResendVerification(nextMessage === 'User already exists');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isBabcockEmail(normalizedEmail)) {
+      setError('Please use a valid Babcock email address.');
+      return;
+    }
+
+    setError('');
+    setInfo('');
+    setResendingVerification(true);
+    try {
+      const { data } = await API.post('/auth/resend-verification', { email: normalizedEmail });
+      setInfo(data?.message || 'Verification email resent. Check your inbox.');
+      setCanResendVerification(false);
+    } catch (err) {
+      const message = (err as AxiosError<{ message?: string }>)?.response?.data?.message;
+      setError(message || 'Could not resend verification email. Please try again.');
+    } finally {
+      setResendingVerification(false);
     }
   };
 
@@ -330,6 +360,43 @@ const Register = () => {
             >
               ✕ {error}
             </motion.div>
+          )}
+
+          {info && (
+            <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+              style={{
+                background: t.greenPale, border: `1px solid ${t.greenLight}`,
+                borderRadius: 10, padding: '10px 14px',
+                fontSize: '0.82rem', color: t.green, marginBottom: 18,
+              }}
+            >
+              ✓ {info}
+            </motion.div>
+          )}
+
+          {canResendVerification && (
+            <div style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendingVerification}
+                style={{
+                  width: '100%',
+                  border: `1.5px solid ${t.greenMid}`,
+                  background: '#fff',
+                  color: t.green,
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  fontFamily: "'Instrument Sans', sans-serif",
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  cursor: resendingVerification ? 'not-allowed' : 'pointer',
+                  opacity: resendingVerification ? 0.7 : 1,
+                }}
+              >
+                {resendingVerification ? 'Resending verification email...' : 'Resend verification email'}
+              </button>
+            </div>
           )}
 
           {/* Form */}

@@ -33,6 +33,23 @@ const consumeEmailVerification = async (user) => {
   await user.save();
 };
 
+const issueAndSendVerificationChallenge = async (user) => {
+  const verificationCode = String(crypto.randomInt(100000, 1000000));
+  const verificationExpiresAt = new Date(Date.now() + 1000 * 60 * 10);
+
+  user.emailVerificationCode = verificationCode;
+  user.emailVerificationExpires = verificationExpiresAt;
+  await user.save();
+
+  const verificationLink = buildVerificationLink(user.email, verificationCode);
+
+  await sendEmail({
+    to: user.email,
+    subject: 'Verify your Babcock Marketplace account',
+    text: `Your verification code is ${verificationCode}. It expires in 10 minutes.\n\nOr click this verification link:\n${verificationLink}`,
+  });
+};
+
 const isBabcockEmail = (email) => {
   const normalized = String(email || '').trim().toLowerCase();
   if (!normalized.includes('@')) {
@@ -124,9 +141,6 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    const verificationCode = String(crypto.randomInt(100000, 1000000));
-    const verificationExpiresAt = new Date(Date.now() + 1000 * 60 * 10);
-
     user = new User({
       fullName,
       email: normalizedEmail,
@@ -136,19 +150,9 @@ router.post('/register', async (req, res) => {
       profileImage,
       campusRole,
       isVerified: false,
-      emailVerificationCode: verificationCode,
-      emailVerificationExpires: verificationExpiresAt,
     });
 
-    await user.save();
-
-    const verificationLink = buildVerificationLink(normalizedEmail, verificationCode);
-
-    await sendEmail({
-      to: normalizedEmail,
-      subject: 'Verify your Babcock Marketplace account',
-      text: `Your verification code is ${verificationCode}. It expires in 10 minutes.\n\nOr click this verification link:\n${verificationLink}`,
-    });
+    await issueAndSendVerificationChallenge(user);
 
     const { accessToken, refreshToken } = await issueAuthTokens(user);
 
@@ -160,6 +164,35 @@ router.post('/register', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const normalizedEmail = String(req.body.email || '').trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    if (!isBabcockEmail(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please use a valid Babcock email address.' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found for this email' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: 'Account is already verified. Please sign in.' });
+    }
+
+    await issueAndSendVerificationChallenge(user);
+
+    return res.json({ message: 'Verification email resent. Check your inbox.' });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
   }
 });
 
