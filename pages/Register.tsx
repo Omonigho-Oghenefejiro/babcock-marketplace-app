@@ -19,7 +19,18 @@ const t = {
   errorBg:    '#FEF2F2',
 };
 
-const BABCOCK_EMAIL_REGEX = /[a-z0-9._%+-]+@[a-z0-9.-]*babcock\.edu\.ng$/i;
+const isBabcockEmail = (email: string) => {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized.includes('@')) return false;
+
+  const parts = normalized.split('@');
+  if (parts.length !== 2) return false;
+
+  const [localPart, domainPart] = parts;
+  if (!localPart || !domainPart || !domainPart.includes('.')) return false;
+
+  return domainPart.includes('babcock.edu.ng');
+};
 
 /* ── Field component ── */
 const Field = ({
@@ -121,7 +132,7 @@ const Register = () => {
     const normalizedEmail = email.trim().toLowerCase();
 
     if (!name.trim())                           return setError('Please enter your full name.');
-    if (!BABCOCK_EMAIL_REGEX.test(normalizedEmail)) return setError('Please use a valid @babcock.edu.ng email address.');
+    if (!isBabcockEmail(normalizedEmail)) return setError('Please use a valid Babcock email address.');
     if (password.length < 6)                   return setError('Password must be at least 6 characters.');
     if (password !== confirmPw)                return setError('Passwords do not match.');
     if (!agreed)                               return setError('Please accept the terms to continue.');
@@ -330,7 +341,7 @@ const Register = () => {
             <Field
               label="Babcock Email" type="email" value={email} onChange={setEmail}
               placeholder="you@babcock.edu.ng" icon={Mail}
-              hint="Must end with @babcock.edu.ng" required
+              hint="Must contain babcock.edu.ng" required
             />
 
             <Field
