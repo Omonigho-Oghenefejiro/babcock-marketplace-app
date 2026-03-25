@@ -16,6 +16,7 @@ import ResetPassword from './pages/ResetPassword.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
 import AdminInventory from './pages/AdminInventory.tsx';
 import AdminReports from './pages/AdminReports.tsx';
+import VerifyEmail from './pages/VerifyEmail';
 import Wishlist from './pages/Wishlist.tsx';
 import UserDashboard from './pages/UserDashboard.tsx';
 import SellItem from './pages/SellItem.tsx';
@@ -33,6 +34,7 @@ const ROUTES = [
   { path: '/wishlist', element: <Wishlist /> },
   { path: '/login', element: <Login /> },
   { path: '/register', element: <Register /> },
+  { path: '/verify-email', element: <VerifyEmail /> },
   { path: '/auth/callback', element: <AuthCallback /> },
   { path: '/forgot-password', element: <ForgotPassword /> },
   { path: '/reset-password', element: <ResetPassword /> },

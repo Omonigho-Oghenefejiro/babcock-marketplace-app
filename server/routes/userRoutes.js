@@ -202,30 +202,30 @@ router.get('/verify-email-link', async (req, res) => {
     const normalizedCode = String(req.query.code || '').trim();
 
     if (!normalizedEmail || !normalizedCode) {
-      return res.redirect(buildFrontendLoginRedirect({ verify: 'invalid' }));
+      return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=invalid`);
     }
 
     const user = await User.findOne({ email: normalizedEmail });
     if (!user || !user.emailVerificationCode || !user.emailVerificationExpires) {
-      return res.redirect(buildFrontendLoginRedirect({ verify: 'invalid' }));
+      return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=invalid`);
     }
 
     if (user.isVerified) {
-      return res.redirect(buildFrontendLoginRedirect({ verify: 'success' }));
+      return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=success`);
     }
 
     if (new Date(user.emailVerificationExpires).getTime() <= Date.now()) {
-      return res.redirect(buildFrontendLoginRedirect({ verify: 'expired' }));
+      return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=expired`);
     }
 
     if (String(user.emailVerificationCode) !== normalizedCode) {
-      return res.redirect(buildFrontendLoginRedirect({ verify: 'invalid' }));
+      return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=invalid`);
     }
 
     await consumeEmailVerification(user);
-    return res.redirect(buildFrontendLoginRedirect({ verify: 'success' }));
+    return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=success`);
   } catch (err) {
-    return res.redirect(buildFrontendLoginRedirect({ verify: 'failed' }));
+    return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=failed`);
   }
 });
 
