@@ -126,9 +126,18 @@ const Register = () => {
   const [info, setInfo]             = useState('');
   const [canResendVerification, setCanResendVerification] = useState(false);
   const [resendingVerification, setResendingVerification] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const { register } = useStore();
   const navigate  = useNavigate();
+
+  React.useEffect(() => {
+    if (resendTimer <= 0) return;
+    const id = setTimeout(() => setResendTimer(v => v - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendTimer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +156,9 @@ const Register = () => {
     setLoading(true);
     try {
       await register(name, normalizedEmail, password, phone, '', username);
-      navigate('/', { replace: true });
+      setRegisteredEmail(normalizedEmail);
+      setEmailSent(true);
+      setResendTimer(60);
     } catch (err) {
       const message = (err as AxiosError<{ message?: string }>)?.response?.data?.message;
       const nextMessage = message || 'Registration failed. Please try again.';
@@ -159,7 +170,7 @@ const Register = () => {
   };
 
   const handleResendVerification = async () => {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = (registeredEmail || email).trim().toLowerCase();
     if (!isBabcockEmail(normalizedEmail)) {
       setError('Please use a valid Babcock email address.');
       return;
@@ -172,6 +183,7 @@ const Register = () => {
       const { data } = await API.post('/auth/resend-verification', { email: normalizedEmail });
       setInfo(data?.message || 'Verification email resent. Check your inbox.');
       setCanResendVerification(false);
+      setResendTimer(60);
     } catch (err) {
       const message = (err as AxiosError<{ message?: string }>)?.response?.data?.message;
       setError(message || 'Could not resend verification email. Please try again.');
@@ -189,9 +201,129 @@ const Register = () => {
 
   const steps = [
     { num: '01', title: 'Create account', desc: 'Takes under 2 minutes' },
-    { num: '02', title: 'Verify email', desc: 'Enter the code sent to your inbox' },
+    { num: '02', title: 'Verify email', desc: 'Click the link sent to your inbox' },
     { num: '03', title: 'Start trading',  desc: 'Buy or list immediately' },
   ];
+
+  if (emailSent) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: 'calc(100vh - 4rem)',
+        background: t.cream, fontFamily: "'Instrument Sans', sans-serif",
+        padding: '24px',
+      }}>
+        <motion.div
+          initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            background: '#fff', borderRadius: 24,
+            padding: 'clamp(32px, 6vw, 52px)',
+            maxWidth: 460, width: '100%',
+            border: `1.5px solid ${t.border}`,
+            boxShadow: '0 8px 40px rgba(27,67,50,0.08)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{
+            width: 72, height: 72, borderRadius: '50%',
+            background: t.greenPale, border: `2px solid ${t.greenLight}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '2rem', margin: '0 auto 24px',
+          }}>
+            📧
+          </div>
+
+          <h1 style={{
+            fontFamily: "'Syne', sans-serif", fontWeight: 800,
+            fontSize: '1.6rem', color: t.ink, marginBottom: 10,
+          }}>
+            Check your email
+          </h1>
+
+          <p style={{ fontSize: '0.9rem', color: t.muted, lineHeight: 1.7, marginBottom: 8 }}>
+            We sent a verification link to
+          </p>
+          <p style={{
+            fontSize: '0.95rem', fontWeight: 700, color: t.green,
+            background: t.greenPale, borderRadius: 8, padding: '8px 16px',
+            display: 'inline-block', marginBottom: 24,
+          }}>
+            {registeredEmail}
+          </p>
+
+          <p style={{ fontSize: '0.85rem', color: t.muted, lineHeight: 1.7, marginBottom: 32 }}>
+            Click the link in the email to verify your account and get full access to the marketplace.
+            The link expires in <strong>10 minutes</strong>.
+          </p>
+
+          {error && (
+            <div style={{
+              background: t.errorBg, border: `1px solid #FECACA`,
+              borderRadius: 10, padding: '10px 14px',
+              fontSize: '0.82rem', color: t.error, marginBottom: 16, textAlign: 'left',
+            }}>
+              ✕ {error}
+            </div>
+          )}
+
+          {info && (
+            <div style={{
+              background: t.greenPale, border: `1px solid ${t.greenLight}`,
+              borderRadius: 10, padding: '10px 14px',
+              fontSize: '0.82rem', color: t.green, marginBottom: 16, textAlign: 'left',
+            }}>
+              ✓ {info}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleResendVerification}
+            disabled={resendingVerification || resendTimer > 0}
+            style={{
+              width: '100%',
+              border: `1.5px solid ${resendTimer > 0 ? t.border : t.greenMid}`,
+              background: '#fff',
+              color: resendTimer > 0 ? t.muted : t.green,
+              borderRadius: 12, padding: '13px',
+              fontFamily: "'Instrument Sans', sans-serif",
+              fontSize: '0.9rem', fontWeight: 700,
+              cursor: (resendingVerification || resendTimer > 0) ? 'not-allowed' : 'pointer',
+              opacity: resendingVerification ? 0.7 : 1,
+              transition: 'all 0.2s',
+              marginBottom: 16,
+            }}
+          >
+            {resendingVerification
+              ? 'Resending...'
+              : resendTimer > 0
+              ? `Resend link in ${resendTimer}s`
+              : 'Resend verification link'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            style={{
+              width: '100%', background: t.green, color: '#fff',
+              border: 'none', borderRadius: 12, padding: '13px',
+              fontFamily: "'Syne', sans-serif", fontWeight: 700,
+              fontSize: '0.9rem', cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(27,67,50,0.2)',
+            }}
+          >
+            Go to sign in →
+          </button>
+
+          <p style={{ fontSize: '0.78rem', color: t.muted, marginTop: 20, lineHeight: 1.6 }}>
+            Can't find it? Check your spam folder or make sure you used your{' '}
+            <strong>@babcock.edu.ng</strong> email.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: 'calc(100vh - 4rem)', fontFamily: "'Instrument Sans', sans-serif" }}>
