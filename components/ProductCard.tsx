@@ -46,6 +46,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
   const goToLogin = (msg: string) =>
     navigate('/login', { state: { from: `/product/${product.id}`, message: msg, pendingAction: { type: 'cart', productId: product.id } } });
 
+  const goToLoginForPayment = () =>
+    navigate('/login', {
+      state: {
+        from: '/pay',
+        message: 'Sign in to continue to payment',
+        pendingAction: { type: 'payment', productId: product.id },
+      },
+    });
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -61,6 +70,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
     e.stopPropagation();
     if (!user) return goToLogin('Sign in to save items to your wishlist');
     toggleWishlist(product);
+  };
+
+  const handlePayNowClick = (e: React.MouseEvent) => {
+    if (user) return;
+    e.preventDefault();
+    e.stopPropagation();
+    goToLoginForPayment();
   };
 
   /* ── Compact variant ── */
@@ -107,6 +123,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
                 <Link
                   to="/pay"
                   state={{ product }}
+                  onClick={handlePayNowClick}
                   style={{
                     background: t.greenPale,
                     color: t.greenMid,
@@ -321,7 +338,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
           </button>
         </div>
 
-        <Link to="/pay" state={{ product }} style={{ textDecoration: 'none', display: 'block', marginTop: 10 }}>
+        <Link to="/pay" state={{ product }} onClick={handlePayNowClick} style={{ textDecoration: 'none', display: 'block', marginTop: 10 }}>
           <button
             style={{
               width: '100%',
