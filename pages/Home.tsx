@@ -97,7 +97,18 @@ const Home = () => {
   ];
 
   return (
-    <div style={{ background: t.cream, fontFamily: "'Instrument Sans', sans-serif" }}>
+    <div style={{ background: t.cream, fontFamily: "'Instrument Sans', sans-serif", overflowX: 'hidden' }}>
+      <style>{`
+        @media (max-width: 640px) {
+          .hero-title { font-size: 2.2rem !important; }
+          .cta-buttons { flex-direction: column !important; }
+          .cta-buttons a { width: 100% !important; box-sizing: border-box !important; }
+          .stats-row { gap: 20px !important; }
+          .cta-banner-buttons { flex-direction: column !important; width: 100% !important; }
+          .cta-banner-buttons a { width: 100% !important; box-sizing: border-box !important; text-align: center !important; justify-content: center !important; }
+          .tab-pills button { padding: 6px 10px !important; font-size: 0.72rem !important; }
+        }
+      `}</style>
 
       {/* ════════════════════════════════
           HERO
@@ -138,8 +149,8 @@ const Home = () => {
           pointerEvents: 'none',
         }} />
 
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '80px 24px', position: 'relative', zIndex: 1, width: '100%' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(40px, 8vw, 80px) 20px', position: 'relative', zIndex: 1, width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: 'clamp(32px, 5vw, 64px)', alignItems: 'center' }}>
 
             {/* Left */}
             <div>
@@ -186,7 +197,7 @@ const Home = () => {
               <motion.div
                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}
+                style={{ display: 'flex', gap: 12, flexWrap: 'wrap', maxWidth: '100%' }}
               >
                 <Link to="/shop" style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -195,6 +206,7 @@ const Home = () => {
                   fontSize: '0.9rem', padding: '14px 28px', borderRadius: 12,
                   textDecoration: 'none', transition: 'transform 0.15s, box-shadow 0.15s',
                   boxShadow: '0 4px 20px rgba(244,162,38,0.35)',
+                  flex: '1 1 auto', justifyContent: 'center', minWidth: 0,
                 }}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(244,162,38,0.45)'; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(244,162,38,0.35)'; }}
@@ -208,6 +220,7 @@ const Home = () => {
                   fontFamily: "'Instrument Sans', sans-serif", fontWeight: 600,
                   fontSize: '0.9rem', padding: '14px 28px', borderRadius: 12,
                   textDecoration: 'none', transition: 'background 0.2s',
+                  flex: '1 1 auto', justifyContent: 'center', minWidth: 0,
                 }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
@@ -220,7 +233,7 @@ const Home = () => {
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.5 }}
-                style={{ display: 'flex', gap: 32, marginTop: 48 }}
+                style={{ display: 'flex', gap: 'clamp(16px, 4vw, 32px)', marginTop: 40, flexWrap: 'wrap' }}
               >
                 {[
                   { label: 'Students', value: '2.5k+', icon: '👥' },
@@ -440,7 +453,7 @@ const Home = () => {
               </div>
 
               {/* Tab pills */}
-              <div style={{ display: 'flex', gap: 6, background: '#F3F4F6', borderRadius: 12, padding: 4 }}>
+              <div className="tab-pills" style={{ display: 'flex', gap: 6, background: '#F3F4F6', borderRadius: 12, padding: 4 }}>
                 {[
                   { id: 'featured', label: 'Featured', icon: <Star size={13} /> },
                   { id: 'trending', label: 'Trending', icon: <Flame size={13} /> },
@@ -659,7 +672,7 @@ const Home = () => {
               </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0, position: 'relative', zIndex: 1 }}>
+            <div className="cta-banner-buttons" style={{ display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0, position: 'relative', zIndex: 1 }}>
               <Link to="/sell" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 background: t.amber, color: t.ink,

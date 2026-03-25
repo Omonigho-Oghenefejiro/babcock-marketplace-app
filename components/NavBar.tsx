@@ -85,8 +85,10 @@ const Navbar = () => {
           }}
           className="text-center text-xs py-2 px-4 text-white/80 tracking-wide"
         >
-          🎓 Exclusively for Babcock University students — verify with your{' '}
-          <span className="text-amber-300 font-semibold">@babcock.edu.ng</span> email
+          <span className="hidden sm:inline">🎓 Exclusively for Babcock University students — verify with your{' '}</span>
+          <span className="sm:hidden">🎓 Babcock students only —{' '}</span>
+          <span className="text-amber-300 font-semibold">@babcock.edu.ng</span>
+          <span className="hidden sm:inline"> email</span>
         </div>
 
         <nav
@@ -646,7 +648,7 @@ const Navbar = () => {
         </div>
       </>
 
-      <div className="h-24" />
+      <div className="h-20 sm:h-24" />
     </>
   );
 };
