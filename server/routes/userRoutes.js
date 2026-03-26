@@ -121,7 +121,19 @@ router.post('/register', async (req, res) => {
 
     let user = await User.findOne({ email: normalizedEmail });
     if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+      if (user.isVerified) {
+        return res.status(400).json({ message: 'User already exists' });
+      }
+
+      await issueAndSendVerificationChallenge(user);
+      const { accessToken, refreshToken } = await issueAuthTokens(user);
+
+      return res.status(200).json({
+        message: 'Account already exists but is not verified. Verification email resent.',
+        token: accessToken,
+        refreshToken,
+        user: toAuthUserPayload(user),
+      });
     }
 
     const usernameBase = String(username || normalizedEmail.split('@')[0] || '')

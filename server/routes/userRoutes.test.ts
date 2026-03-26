@@ -202,7 +202,7 @@ describe('server userRoutes verification flow', () => {
     expect(userDoc.emailVerificationExpires).toBeUndefined();
     expect(save).toHaveBeenCalledTimes(1);
     expect(res.redirect).toHaveBeenCalledWith(
-      expect.stringContaining('/#/login?verify=success')
+      expect.stringContaining('/#/verify-email?verify=success')
     );
   });
 
@@ -232,7 +232,7 @@ describe('server userRoutes verification flow', () => {
 
     expect(userDoc.save).not.toHaveBeenCalled();
     expect(res.redirect).toHaveBeenCalledWith(
-      expect.stringContaining('/#/login?verify=expired')
+      expect.stringContaining('/#/verify-email?verify=expired')
     );
   });
 
