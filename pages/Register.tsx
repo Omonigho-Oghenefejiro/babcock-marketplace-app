@@ -129,6 +129,8 @@ const Register = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verifyingCode, setVerifyingCode] = useState(false);
 
   const { register } = useStore();
   const navigate  = useNavigate();
@@ -192,6 +194,33 @@ const Register = () => {
     }
   };
 
+  const handleVerifyCode = async () => {
+    const normalizedEmail = (registeredEmail || email).trim().toLowerCase();
+    const normalizedCode = verificationCode.trim();
+
+    if (!normalizedCode) {
+      setError('Please enter the verification code sent to your email.');
+      return;
+    }
+
+    setError('');
+    setInfo('');
+    setVerifyingCode(true);
+    try {
+      const { data } = await API.post('/auth/verify-email', {
+        email: normalizedEmail,
+        code: normalizedCode,
+      });
+      setInfo(data?.message || 'Email verified successfully. You can now sign in.');
+      setTimeout(() => navigate('/login?verify=success'), 700);
+    } catch (err) {
+      const message = (err as AxiosError<{ message?: string }>)?.response?.data?.message;
+      setError(message || 'Invalid or expired verification code. Please try again.');
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
+
   const benefits = [
     { emoji: '📚', text: 'Buy textbooks at half the bookshop price' },
     { emoji: '💰', text: 'Sell items to 2,500+ active students' },
@@ -252,10 +281,54 @@ const Register = () => {
             {registeredEmail}
           </p>
 
-          <p style={{ fontSize: '0.85rem', color: t.muted, lineHeight: 1.7, marginBottom: 32 }}>
-            Click the link in the email to verify your account and get full access to the marketplace.
-            The link expires in <strong>10 minutes</strong>.
+          <p style={{ fontSize: '0.85rem', color: t.muted, lineHeight: 1.7, marginBottom: 16 }}>
+            Enter the 6-digit verification code sent to your email to activate your account.
+            The code expires in <strong>10 minutes</strong>.
           </p>
+
+          <div style={{ marginBottom: 16 }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="Enter 6-digit code"
+              style={{
+                width: '100%',
+                border: `1.5px solid ${t.border}`,
+                borderRadius: 12,
+                padding: '12px 14px',
+                fontFamily: "'Instrument Sans', sans-serif",
+                fontSize: '0.95rem',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleVerifyCode}
+            disabled={verifyingCode || verificationCode.trim().length < 6}
+            style={{
+              width: '100%',
+              background: t.green,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 12,
+              padding: '13px',
+              fontFamily: "'Syne', sans-serif",
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              cursor: (verifyingCode || verificationCode.trim().length < 6) ? 'not-allowed' : 'pointer',
+              opacity: (verifyingCode || verificationCode.trim().length < 6) ? 0.7 : 1,
+              boxShadow: '0 4px 16px rgba(27,67,50,0.2)',
+              marginBottom: 16,
+            }}
+          >
+            {verifyingCode ? 'Verifying code...' : 'Verify code'}
+          </button>
 
           {error && (
             <div style={{
@@ -292,14 +365,14 @@ const Register = () => {
               cursor: (resendingVerification || resendTimer > 0) ? 'not-allowed' : 'pointer',
               opacity: resendingVerification ? 0.7 : 1,
               transition: 'all 0.2s',
-              marginBottom: 16,
+              marginBottom: 12,
             }}
           >
             {resendingVerification
               ? 'Resending...'
               : resendTimer > 0
-              ? `Resend link in ${resendTimer}s`
-              : 'Resend verification link'}
+              ? `Resend code in ${resendTimer}s`
+              : 'Resend verification code'}
           </button>
 
           <button

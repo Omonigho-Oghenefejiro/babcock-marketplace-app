@@ -10,14 +10,11 @@ const t = {
   border: '#E8E2D9',
 };
 
-const generateHumanCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
-
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [humanCode, setHumanCode] = useState(() => generateHumanCode());
-  const [humanInput, setHumanInput] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -36,7 +33,7 @@ const ForgotPassword = () => {
     try {
       await API.post('/auth/forgot-password', { email: normalizedEmail });
       setStep(2);
-      setMessage('Now create your new password and complete human verification.');
+      setMessage('A reset code has been sent to your email. Enter the code and your new password.');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Unable to continue reset flow.');
     } finally {
@@ -56,22 +53,21 @@ const ForgotPassword = () => {
       setError('Passwords do not match.');
       return;
     }
-    if (humanInput.trim().toUpperCase() !== humanCode) {
-      setError('Please enter the human verification code correctly.');
+    if (!resetCode.trim()) {
+      setError('Please enter the reset code sent to your email.');
       return;
     }
 
     setLoading(true);
     try {
-      const { data } = await API.post('/auth/reset-password-direct', {
-        email: String(email).trim().toLowerCase(),
+      const { data } = await API.post('/auth/reset-password', {
+        token: resetCode.trim(),
         newPassword: password,
       });
       setMessage(data?.message || 'Password reset successful. You can now login.');
+      setResetCode('');
       setPassword('');
       setConfirmPassword('');
-      setHumanInput('');
-      setHumanCode(generateHumanCode());
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Unable to reset password. Please try again.');
     } finally {
@@ -84,7 +80,7 @@ const ForgotPassword = () => {
       <div style={{ width: '100%', maxWidth: 460, background: '#fff', border: `1.5px solid ${t.border}`, borderRadius: 16, padding: 24 }}>
         <h1 style={{ fontSize: '1.35rem', marginBottom: 8 }}>Forgot Password</h1>
         <p style={{ color: t.muted, fontSize: '0.88rem', marginBottom: 16 }}>
-          Step {step} of 2: {step === 1 ? 'Enter your account email' : 'Create new password and verify human'}
+          Step {step} of 2: {step === 1 ? 'Enter your account email' : 'Enter reset code and create a new password'}
         </p>
 
         {message && <p style={{ background: t.greenLight, color: t.green, padding: '10px 12px', borderRadius: 10, marginBottom: 12 }}>{message}</p>}
@@ -104,6 +100,14 @@ const ForgotPassword = () => {
           {step === 2 && (
             <>
               <input
+                type="text"
+                value={resetCode}
+                onChange={(e) => setResetCode(e.target.value)}
+                required
+                placeholder="Reset code from email"
+                style={{ width: '100%', border: `1.5px solid ${t.border}`, borderRadius: 10, padding: '10px 12px', marginBottom: 10, outline: 'none' }}
+              />
+              <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -121,27 +125,6 @@ const ForgotPassword = () => {
                 placeholder="Confirm new password"
                 style={{ width: '100%', border: `1.5px solid ${t.border}`, borderRadius: 10, padding: '10px 12px', marginBottom: 12, outline: 'none' }}
               />
-
-              <div style={{ background: t.cream, border: `1px solid ${t.border}`, borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
-                <p style={{ fontSize: '0.8rem', color: t.muted, marginBottom: 8 }}>
-                  Human Check: <strong style={{ color: t.green }}>{humanCode}</strong>
-                </p>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    value={humanInput}
-                    onChange={(e) => setHumanInput(e.target.value.toUpperCase())}
-                    placeholder="Enter code"
-                    style={{ flex: 1, border: `1.5px solid ${t.border}`, borderRadius: 10, padding: '10px 12px', outline: 'none' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { setHumanCode(generateHumanCode()); setHumanInput(''); }}
-                    style={{ border: `1.5px solid ${t.border}`, background: '#fff', borderRadius: 10, padding: '0 10px', color: t.muted, cursor: 'pointer' }}
-                  >
-                    New
-                  </button>
-                </div>
-              </div>
             </>
           )}
 
