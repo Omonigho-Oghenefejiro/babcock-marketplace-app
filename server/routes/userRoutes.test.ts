@@ -119,16 +119,9 @@ describe('server userRoutes verification flow', () => {
   });
 
   it('verify-email marks account as verified with valid code', async () => {
-    const save = vi.fn().mockResolvedValue(undefined);
-    const userDoc = {
-      email: 'student@babcock.edu.ng',
-      isVerified: false,
-      emailVerificationCode: '123456',
-      emailVerificationExpires: new Date(Date.now() + 60_000),
-      save,
-    };
-
-    vi.spyOn(User, 'findOne').mockResolvedValue(userDoc);
+    const findOneAndUpdateSpy = vi.spyOn(User, 'findOneAndUpdate').mockReturnValue({
+      select: vi.fn().mockResolvedValue({ _id: 'u-1' }),
+    } as any);
 
     const router = loadRouter();
     const verifyEmail = getRouteHandler(router, 'post', '/verify-email');
@@ -143,23 +136,21 @@ describe('server userRoutes verification flow', () => {
 
     await verifyEmail(req, res);
 
-    expect(userDoc.isVerified).toBe(true);
-    expect(userDoc.emailVerificationCode).toBeUndefined();
-    expect(userDoc.emailVerificationExpires).toBeUndefined();
-    expect(save).toHaveBeenCalledTimes(1);
+    expect(findOneAndUpdateSpy).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith({ message: 'Email verified successfully' });
   });
 
   it('verify-email rejects incorrect verification codes', async () => {
-    const userDoc = {
-      email: 'student@babcock.edu.ng',
-      isVerified: false,
-      emailVerificationCode: '123456',
-      emailVerificationExpires: new Date(Date.now() + 60_000),
-      save: vi.fn().mockResolvedValue(undefined),
-    };
-
-    vi.spyOn(User, 'findOne').mockResolvedValue(userDoc);
+    vi.spyOn(User, 'findOneAndUpdate').mockReturnValue({
+      select: vi.fn().mockResolvedValue(null),
+    } as any);
+    vi.spyOn(User, 'findOne').mockReturnValue({
+      select: vi.fn().mockResolvedValue({
+        isVerified: false,
+        emailVerificationCode: '123456',
+        emailVerificationExpires: new Date(Date.now() + 60_000),
+      }),
+    } as any);
 
     const router = loadRouter();
     const verifyEmail = getRouteHandler(router, 'post', '/verify-email');
@@ -174,22 +165,12 @@ describe('server userRoutes verification flow', () => {
 
     await verifyEmail(req, res);
 
-    expect(userDoc.save).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid verification code' });
   });
 
   it('verify-email-link verifies account and redirects to login success', async () => {
-    const save = vi.fn().mockResolvedValue(undefined);
-    const userDoc = {
-      email: 'student@babcock.edu.ng',
-      isVerified: false,
-      emailVerificationCode: '123456',
-      emailVerificationExpires: new Date(Date.now() + 60_000),
-      save,
-    };
-
-    vi.spyOn(User, 'findOne').mockResolvedValue(userDoc);
+    const findOneAndUpdateSpy = vi.spyOn(User, 'findOneAndUpdate').mockResolvedValue({ _id: 'u-1' } as any);
 
     const router = loadRouter();
     const verifyEmailLink = getRouteHandler(router, 'get', '/verify-email-link');
@@ -204,25 +185,20 @@ describe('server userRoutes verification flow', () => {
 
     await verifyEmailLink(req, res);
 
-    expect(userDoc.isVerified).toBe(true);
-    expect(userDoc.emailVerificationCode).toBeUndefined();
-    expect(userDoc.emailVerificationExpires).toBeUndefined();
-    expect(save).toHaveBeenCalledTimes(1);
+    expect(findOneAndUpdateSpy).toHaveBeenCalled();
     expect(res.redirect).toHaveBeenCalledWith(
       expect.stringContaining('/#/verify-email?verify=success')
     );
   });
 
   it('verify-email-link rejects expired codes and redirects', async () => {
-    const userDoc = {
-      email: 'student@babcock.edu.ng',
-      isVerified: false,
-      emailVerificationCode: '123456',
-      emailVerificationExpires: new Date(Date.now() - 60_000),
-      save: vi.fn().mockResolvedValue(undefined),
-    };
-
-    vi.spyOn(User, 'findOne').mockResolvedValue(userDoc);
+    vi.spyOn(User, 'findOneAndUpdate').mockResolvedValue(null);
+    vi.spyOn(User, 'findOne').mockReturnValue({
+      select: vi.fn().mockResolvedValue({
+        isVerified: false,
+        emailVerificationExpires: new Date(Date.now() - 60_000),
+      }),
+    } as any);
 
     const router = loadRouter();
     const verifyEmailLink = getRouteHandler(router, 'get', '/verify-email-link');
@@ -237,7 +213,6 @@ describe('server userRoutes verification flow', () => {
 
     await verifyEmailLink(req, res);
 
-    expect(userDoc.save).not.toHaveBeenCalled();
     expect(res.redirect).toHaveBeenCalledWith(
       expect.stringContaining('/#/verify-email?verify=expired')
     );

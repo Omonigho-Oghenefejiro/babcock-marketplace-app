@@ -130,10 +130,14 @@ describe('AIAssistant', () => {
     });
 
     fireEvent.click(screen.getByLabelText('Close assistant'));
-    expect(screen.queryByText('🛒 Buying')).not.toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByText('Ask another question')).toBeNull();
+    }, { timeout: 1000 });
 
     fireEvent.click(screen.getByLabelText('Open assistant'));
-    expect(screen.getByText('🛒 Buying')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText('🛒 Buying')).toBeTruthy();
+    }, { timeout: 1000 });
   });
 
   it('uses message-page bottom offset for floating button', () => {

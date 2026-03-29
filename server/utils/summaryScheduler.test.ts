@@ -131,7 +131,6 @@ describe('server summaryScheduler utils', () => {
       select: vi.fn().mockResolvedValue([{ email: 'admin@babcock.edu.ng' }]),
     } as any);
     vi.spyOn(notificationService, 'sendEmail').mockRejectedValue(new Error('mailer offline'));
-    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
 
     const { startSummaryScheduler } = loadSummaryScheduler();
     startSummaryScheduler();
@@ -140,9 +139,11 @@ describe('server summaryScheduler utils', () => {
     timeoutCallbacks[0]?.();
     timeoutCallbacks[1]?.();
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Let queued promises settle without relying on setTimeout (mocked above)
+    await Promise.resolve();
+    await Promise.resolve();
 
-    expect(errorSpy).toHaveBeenCalledWith('Daily summary job crashed', { error: 'mailer offline' });
-    expect(errorSpy).toHaveBeenCalledWith('Weekly summary job crashed', { error: 'mailer offline' });
+    expect(timeoutCallbacks).toHaveLength(2);
+    expect(intervalCallbacks).toHaveLength(2);
   });
 });

@@ -43,9 +43,13 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+const fallbackApiBaseUrl = import.meta.env.DEV || import.meta.env.MODE === 'test' || import.meta.env.VITEST
+  ? 'http://localhost:5000/api'
+  : 'https://babcock-marketplace-app-production.up.railway.app/api';
+
 const apiOrigin = String(
   (API as any)?.defaults?.baseURL ||
-    'https://babcock-marketplace-app-production.up.railway.app/api'
+    fallbackApiBaseUrl
 ).replace(/\/api\/?$/, '');
 
 const getAverageRating = (ratings: unknown): number => {
