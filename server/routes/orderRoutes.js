@@ -169,10 +169,13 @@ router.post('/', auth, async (req, res) => {
     await order.populate('items.product');
 
     if (buyer?.email) {
-      await sendEmail({
+      // Send email asynchronously (non-blocking)
+      sendEmail({
         to: buyer.email,
         subject: `Order confirmation: ${order._id}`,
         text: `Your order was placed successfully. Total: ₦${order.totalAmount.toLocaleString()}.`,
+      }).catch((error) => {
+        console.error('Order confirmation email failed', { orderId: order._id, email: buyer.email, error: error.message });
       });
     }
     
@@ -197,10 +200,13 @@ router.put('/:orderId/status', auth, adminCheck, async (req, res) => {
     }
     
     if (order?.buyer?.email) {
-      await sendEmail({
+      // Send email asynchronously (non-blocking)
+      sendEmail({
         to: order.buyer.email,
         subject: `Order status updated: ${order._id}`,
         text: `Your order status is now ${order.status}.${order.trackingNumber ? ` Tracking number: ${order.trackingNumber}.` : ''}`,
+      }).catch((error) => {
+        console.error('Order status email failed', { orderId: order._id, email: order.buyer.email, error: error.message });
       });
     }
 

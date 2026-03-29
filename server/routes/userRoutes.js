@@ -43,10 +43,14 @@ const issueAndSendVerificationChallenge = async (user) => {
 
   const verificationLink = buildVerificationLink(user.email, verificationCode);
 
-  await sendEmail({
+  // Send email asynchronously (non-blocking) to prevent timeout from blocking registration
+  sendEmail({
     to: user.email,
     subject: 'Verify your Babcock Marketplace account',
     text: `Your verification code is ${verificationCode}. It expires in 10 minutes.\n\nOr click this verification link:\n${verificationLink}`,
+  }).catch((error) => {
+    // Log email failure but don't crash the request
+    console.error('Verification email failed to send', { email: user.email, error: error.message });
   });
 };
 
@@ -292,10 +296,13 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 30);
     await user.save();
 
-    await sendEmail({
+    // Send email asynchronously (non-blocking)
+    sendEmail({
       to: user.email,
       subject: 'Password reset request',
       text: `Use this reset token within 30 minutes: ${user.resetPasswordToken}`,
+    }).catch((error) => {
+      console.error('Password reset email failed', { email: user.email, error: error.message });
     });
 
     return res.json({ message: 'If an account exists, reset instructions have been sent.' });
