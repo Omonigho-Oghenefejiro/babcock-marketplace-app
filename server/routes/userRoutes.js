@@ -213,25 +213,37 @@ router.get('/verify-email-link', async (req, res) => {
       return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=invalid`);
     }
 
-    const user = await User.findOne({ email: normalizedEmail });
-    if (!user || !user.emailVerificationCode || !user.emailVerificationExpires) {
-      return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=invalid`);
-    }
+    const now = new Date();
+    const verifiedUser = await User.findOneAndUpdate(
+      {
+        email: normalizedEmail,
+        isVerified: false,
+        emailVerificationCode: normalizedCode,
+        emailVerificationExpires: { $gt: now },
+      },
+      {
+        $set: { isVerified: true },
+        $unset: { emailVerificationCode: 1, emailVerificationExpires: 1 },
+      },
+      { new: true }
+    );
 
-    if (user.isVerified) {
+    if (verifiedUser) {
       return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=success`);
     }
 
-    if (new Date(user.emailVerificationExpires).getTime() <= Date.now()) {
+    const user = await User.findOne({ email: normalizedEmail }).select('isVerified emailVerificationExpires');
+    if (!user) {
+      return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=invalid`);
+    }
+    if (user.isVerified) {
+      return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=success`);
+    }
+    if (user.emailVerificationExpires && new Date(user.emailVerificationExpires).getTime() <= Date.now()) {
       return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=expired`);
     }
 
-    if (String(user.emailVerificationCode) !== normalizedCode) {
-      return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=invalid`);
-    }
-
-    await consumeEmailVerification(user);
-    return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=success`);
+    return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=invalid`);
   } catch (err) {
     return res.redirect(`${frontendRedirectBase}/#/verify-email?verify=failed`);
   }
@@ -247,26 +259,40 @@ router.post('/verify-email', async (req, res) => {
       return res.status(400).json({ message: 'Email and verification code are required' });
     }
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const now = new Date();
+    const verifiedUser = await User.findOneAndUpdate(
+      {
+        email: normalizedEmail,
+        isVerified: false,
+        emailVerificationCode: normalizedCode,
+        emailVerificationExpires: { $gt: now },
+      },
+      {
+        $set: { isVerified: true },
+        $unset: { emailVerificationCode: 1, emailVerificationExpires: 1 },
+      },
+      { new: true }
+    ).select('_id');
+
+    if (verifiedUser) {
+      return res.json({ message: 'Email verified successfully' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail }).select('isVerified emailVerificationCode emailVerificationExpires');
     if (!user) {
       return res.status(404).json({ message: 'No account found for this email' });
     }
-
+    if (user.isVerified) {
+      return res.json({ message: 'Email already verified' });
+    }
     if (!user.emailVerificationCode || !user.emailVerificationExpires) {
       return res.status(400).json({ message: 'No active verification code for this account' });
     }
-
     if (new Date(user.emailVerificationExpires).getTime() <= Date.now()) {
       return res.status(400).json({ message: 'Verification code has expired' });
     }
 
-    if (String(user.emailVerificationCode) !== normalizedCode) {
-      return res.status(400).json({ message: 'Invalid verification code' });
-    }
-
-    await consumeEmailVerification(user);
-
-    return res.json({ message: 'Email verified successfully' });
+    return res.status(400).json({ message: 'Invalid verification code' });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

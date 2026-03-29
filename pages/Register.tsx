@@ -212,7 +212,7 @@ const Register = () => {
         code: normalizedCode,
       });
       setInfo(data?.message || 'Email verified successfully. You can now sign in.');
-      setTimeout(() => navigate('/login?verify=success'), 700);
+      navigate('/login?verify=success', { replace: true });
     } catch (err) {
       const message = (err as AxiosError<{ message?: string }>)?.response?.data?.message;
       setError(message || 'Invalid or expired verification code. Please try again.');
