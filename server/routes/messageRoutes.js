@@ -69,6 +69,9 @@ router.get('/', auth, async (req, res) => {
       conversationsMap.get(convKey).messages.push({
         id: msg._id.toString(),
         senderId: msg.sender._id.toString(),
+        senderUsername: msg.senderUsername,
+        receiverId: msg.receiver._id.toString(),
+        receiverUsername: msg.receiverUsername,
         content: msg.content,
         attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
         timestamp: msg.createdAt.toISOString(),
@@ -103,9 +106,16 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: resolved.error });
     }
 
+    // Fetch sender and receiver details for username capture
+    const User = require('../models/User');
+    const senderUser = await User.findById(senderId).select('fullName');
+    const receiverUser = await User.findById(resolved.receiverId).select('fullName');
+
     const message = new Message({
       sender: senderId,
+      senderUsername: senderUser?.fullName || 'Unknown User',
       receiver: resolved.receiverId,
+      receiverUsername: receiverUser?.fullName || 'Unknown User',
       product: productId,
       content,
       attachments: Array.isArray(attachments) ? attachments : [],
@@ -167,9 +177,16 @@ router.post('/send', auth, async (req, res) => {
       return res.status(400).json({ message: resolved.error });
     }
 
+    // Fetch sender and receiver details for username capture
+    const User = require('../models/User');
+    const senderUser = await User.findById(senderId).select('fullName');
+    const receiverUser = await User.findById(resolved.receiverId).select('fullName');
+
     const message = new Message({
       sender: senderId,
+      senderUsername: senderUser?.fullName || 'Unknown User',
       receiver: resolved.receiverId,
+      receiverUsername: receiverUser?.fullName || 'Unknown User',
       product: productId,
       content,
       attachments: Array.isArray(attachments) ? attachments : [],

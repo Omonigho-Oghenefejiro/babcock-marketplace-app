@@ -271,14 +271,18 @@ const Messages = () => {
                 <AnimatePresence initial={false}>
                   {(activeChat.messages ?? []).map((msg: any) => {
                     const isMe = msg.senderId === user.id;
+                    const senderName = msg.senderUsername || (isMe ? user.name : activeChatOther?.name) || 'Unknown';
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.2 }} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', gap: 8, alignItems: 'flex-end' }}>
-                        {!isMe && <Avatar name={activeChatOther.name} size={28} bg={t.greenMid} />}
-                        <div style={{ maxWidth: '72%', background: isMe ? t.green : '#fff', color: isMe ? '#fff' : t.ink, border: isMe ? 'none' : `1.5px solid ${t.border}`, borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '10px 14px' }}>
-                          <p style={{ fontSize: '0.875rem', lineHeight: 1.55 }}>{msg.content}</p>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 }}>
-                            <span style={{ fontSize: '0.65rem', color: isMe ? 'rgba(255,255,255,0.5)' : t.muted }}>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            {isMe && <Check size={10} color="rgba(255,255,255,0.5)" />}
+                        {!isMe && <Avatar name={senderName} size={28} bg={t.greenMid} />}
+                        <div style={{ maxWidth: '72%' }}>
+                          {!isMe && <p style={{ fontSize: '0.7rem', color: t.greenMid, fontWeight: 600, marginBottom: 4 }}>{senderName}</p>}
+                          <div style={{ background: isMe ? t.green : '#fff', color: isMe ? '#fff' : t.ink, border: isMe ? 'none' : `1.5px solid ${t.border}`, borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '10px 14px' }}>
+                            <p style={{ fontSize: '0.875rem', lineHeight: 1.55 }}>{msg.content}</p>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 }}>
+                              <span style={{ fontSize: '0.65rem', color: isMe ? 'rgba(255,255,255,0.5)' : t.muted }}>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              {isMe && <Check size={10} color="rgba(255,255,255,0.5)" />}
+                            </div>
                           </div>
                         </div>
                       </motion.div>
