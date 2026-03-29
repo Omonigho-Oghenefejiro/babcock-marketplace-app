@@ -1,33 +1,16 @@
 const logger = require('./logger');
-const nodemailer = require('nodemailer');
+const SibApiV3Sdk = require('@getbrevo/brevo');
 
-const smtpHost = process.env.SMTP_HOST;
-const smtpPort = Number(process.env.SMTP_PORT || 587);
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
-const fromEmail = process.env.SMTP_FROM || 'no-reply@babcock-marketplace.local';
-const EMAIL_TIMEOUT = Number(process.env.EMAIL_TIMEOUT || 10000); // 10 seconds default
+const brevoApiKey = process.env.BREVO_API_KEY;
+const fromEmail = process.env.SMTP_FROM || 'noreply@babcock-marketplace.com';
+const EMAIL_TIMEOUT = Number(process.env.EMAIL_TIMEOUT || 10000); // 10 seconds
 
-const transporter = smtpHost && smtpUser && smtpPass
-  ? nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass },
-      socketTimeout: EMAIL_TIMEOUT,
-      connectionTimeout: EMAIL_TIMEOUT,
-    })
-  : null;
-
-// Wrapper to enforce timeout on email sending
-const sendEmailWithTimeout = async (mailOptions, timeout = EMAIL_TIMEOUT) => {
-  return Promise.race([
-    transporter.sendMail(mailOptions),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Email send timeout')), timeout)
-    ),
-  ]);
-};
+// Initialize Brevo API client if key is provided
+let apiClient = null;
+if (brevoApiKey) {
+  apiClient = new SibApiV3Sdk.TransactionalEmailsApi();
+  apiClient.setApiKey(SibApiV3Sdk.ApiClient.instance.authentications['api-key'], brevoApiKey);
+}
 
 const sendEmail = async ({ to, subject, text }) => {
   if (!to || !subject) {
@@ -35,8 +18,8 @@ const sendEmail = async ({ to, subject, text }) => {
     return { sent: false, reason: 'missing-recipient-or-subject' };
   }
 
-  if (!transporter) {
-    logger.info('Email notification queued (fallback - no SMTP configured)', { 
+  if (!apiClient) {
+    logger.info('Email queued (Brevo not configured)', { 
       to, 
       subject, 
       preview: text?.slice(0, 120) 
@@ -45,14 +28,21 @@ const sendEmail = async ({ to, subject, text }) => {
   }
 
   try {
-    await sendEmailWithTimeout({
-      from: fromEmail,
-      to,
+    // Enforce timeout using Promise.race
+    const emailPromise = apiClient.sendTransacEmail({
+      to: [{ email: to }],
+      from: { email: fromEmail, name: 'Babcock Marketplace' },
       subject,
-      text,
+      textContent: text,
     });
 
-    logger.info('Email sent successfully', { to, subject });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Email send timeout')), EMAIL_TIMEOUT)
+    );
+
+    await Promise.race([emailPromise, timeoutPromise]);
+
+    logger.info('Email sent via Brevo', { to, subject });
     return { sent: true, fallback: false };
   } catch (error) {
     logger.error('Email send failed', { 
@@ -62,8 +52,7 @@ const sendEmail = async ({ to, subject, text }) => {
       timeout: EMAIL_TIMEOUT 
     });
     
-    // Return success to prevent request from failing, but log the error
-    // This allows registration to complete even if email fails
+    // Return failure so we can track, but don't crash the request
     return { sent: false, queued: true, error: error.message };
   }
 };
