@@ -1,20 +1,11 @@
 const logger = require('./logger');
-const { BrevoClient } = require('@getbrevo/brevo');
+const axios = require('axios');
 
-const brevoApiKey = process.env.BREVO_API_KEY;
+const brevoApiKey = String(process.env.BREVO_API_KEY || '')
+  .trim()
+  .replace(/^['\"]|['\"]$/g, '');
 const fromEmail = process.env.SMTP_FROM || 'noreply@babcock-marketplace.com';
 const EMAIL_TIMEOUT = Number(process.env.EMAIL_TIMEOUT || 10000); // 10 seconds
-
-// Initialize Brevo API client if key is provided
-let apiClient = null;
-if (brevoApiKey) {
-  try {
-    apiClient = new BrevoClient({ apiKey: brevoApiKey });
-  } catch (error) {
-    logger.error('Brevo client initialization failed', { error: error.message });
-    apiClient = null;
-  }
-}
 
 const sendEmail = async ({ to, subject, text }) => {
   if (!to || !subject) {
@@ -22,7 +13,7 @@ const sendEmail = async ({ to, subject, text }) => {
     return { sent: false, reason: 'missing-recipient-or-subject' };
   }
 
-  if (!apiClient) {
+  if (!brevoApiKey) {
     logger.info('Email queued (Brevo not configured)', { 
       to, 
       subject, 
@@ -32,12 +23,18 @@ const sendEmail = async ({ to, subject, text }) => {
   }
 
   try {
-    // Enforce timeout using Promise.race
-    const emailPromise = apiClient.transactionalEmails.sendTransacEmail({
+    // Call Brevo API directly to avoid SDK/runtime export mismatches.
+    const emailPromise = axios.post('https://api.brevo.com/v3/smtp/email', {
       to: [{ email: to }],
       sender: { email: fromEmail, name: 'Babcock Marketplace' },
       subject,
       textContent: text,
+    }, {
+      headers: {
+        'api-key': brevoApiKey,
+        'Content-Type': 'application/json',
+      },
+      timeout: EMAIL_TIMEOUT,
     });
 
     const timeoutPromise = new Promise((_, reject) =>
