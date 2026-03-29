@@ -36,12 +36,14 @@ const createFindChain = (result: any, rejectErr?: Error) => {
 
 describe('server messageRoutes', () => {
   let Message: any;
+  let Product: any;
 
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
     delete require.cache[messageRoutesPath];
     Message = require('../models/Message.js');
+    Product = require('../models/Product.js');
   });
 
   it('returns grouped conversations for current user', async () => {
@@ -136,6 +138,9 @@ describe('server messageRoutes', () => {
       return Promise.resolve(this);
     });
     const populateSpy = vi.spyOn(Message.prototype, 'populate').mockResolvedValue(undefined as any);
+    vi.spyOn(Product, 'findById').mockReturnValue({
+      select: vi.fn().mockResolvedValue({ seller: receiverId }),
+    } as any);
 
     const req: any = {
       user: { userId: senderId },
@@ -169,12 +174,16 @@ describe('server messageRoutes', () => {
     const router = loadRouter();
     const handler = getRouteHandler(router, 'post', '/');
 
+    vi.spyOn(Product, 'findById').mockReturnValue({
+      select: vi.fn().mockResolvedValue({ seller: 'u-2' }),
+    } as any);
     vi.spyOn(Message.prototype, 'save').mockRejectedValue(new Error('send failed'));
 
     const req: any = {
       user: { userId: 'u-1' },
       body: {
         receiverId: 'u-2',
+        productId: 'p-1',
         content: 'hello',
       },
     };

@@ -1,8 +1,35 @@
 const express = require('express');
 const Message = require('../models/Message');
+const Product = require('../models/Product');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
+
+const resolveReceiverForMessage = async ({ senderId, receiverId, productId }) => {
+  if (productId) {
+    const product = await Product.findById(productId).select('seller');
+    if (!product || !product.seller) {
+      return { error: 'Product not found' };
+    }
+
+    const sellerId = String(product.seller);
+    if (sellerId === String(senderId)) {
+      return { error: 'You cannot start a product chat with yourself' };
+    }
+
+    return { receiverId: sellerId };
+  }
+
+  if (!receiverId) {
+    return { error: 'receiverId is required when productId is not provided' };
+  }
+
+  if (String(receiverId) === String(senderId)) {
+    return { error: 'You cannot message yourself' };
+  }
+
+  return { receiverId: String(receiverId) };
+};
 
 // Get all conversations for current user (grouped by other participant)
 router.get('/', auth, async (req, res) => {
@@ -65,10 +92,20 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { receiverId, productId, content, attachments } = req.body;
+    const senderId = req.user.userId;
+
+    if (!String(content || '').trim()) {
+      return res.status(400).json({ message: 'Message content is required' });
+    }
+
+    const resolved = await resolveReceiverForMessage({ senderId, receiverId, productId });
+    if (resolved.error) {
+      return res.status(400).json({ message: resolved.error });
+    }
 
     const message = new Message({
-      sender: req.user.userId,
-      receiver: receiverId,
+      sender: senderId,
+      receiver: resolved.receiverId,
       product: productId,
       content,
       attachments: Array.isArray(attachments) ? attachments : [],
@@ -119,10 +156,20 @@ router.post('/bulk', auth, async (req, res) => {
 router.post('/send', auth, async (req, res) => {
   try {
     const { receiverId, productId, content, attachments } = req.body;
+    const senderId = req.user.userId;
+
+    if (!String(content || '').trim()) {
+      return res.status(400).json({ message: 'Message content is required' });
+    }
+
+    const resolved = await resolveReceiverForMessage({ senderId, receiverId, productId });
+    if (resolved.error) {
+      return res.status(400).json({ message: resolved.error });
+    }
 
     const message = new Message({
-      sender: req.user.userId,
-      receiver: receiverId,
+      sender: senderId,
+      receiver: resolved.receiverId,
       product: productId,
       content,
       attachments: Array.isArray(attachments) ? attachments : [],
