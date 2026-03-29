@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use localhost in tests/dev, production Railway URL in production
-const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test' || typeof import !== 'undefined' && (import.meta?.env?.MODE === 'test' || import.meta?.env?.VITEST);
+const isTest = (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') || (typeof import !== 'undefined' && (import.meta?.env?.MODE === 'test' || import.meta?.env?.VITEST));
 
 const DEFAULT_API_BASE_URL = isTest || import.meta.env.DEV
   ? 'http://localhost:5000/api'

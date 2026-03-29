@@ -29,35 +29,29 @@ describe('AIAssistant', () => {
     vi.unstubAllEnvs();
   });
 
-  it('keeps chat input enabled without a frontend Gemini key', () => {
+  it('opens and displays category menu on button click', () => {
     renderAssistant();
     fireEvent.click(screen.getByLabelText('Open assistant'));
-
-    const input = screen.getByPlaceholderText('Ask about listings, pricing, or categories...') as HTMLInputElement;
-    const sendButton = screen.getByLabelText('Send message') as HTMLButtonElement;
-
-    expect(input.disabled).toBe(false);
-    expect(sendButton.disabled).toBe(false);
+    expect(screen.getByText('🛒 Buying')).toBeTruthy();
+    expect(screen.getByText('📦 Selling')).toBeTruthy();
   });
 
-  it('sends user message and displays assistant response', async () => {
-    assistantMocks.generateAssistantReply.mockResolvedValueOnce('Assistant response');
+  it('displays questions when category is selected and handles responses', async () => {
+    assistantMocks.generateAssistantReply.mockResolvedValueOnce('Here is how to buy...');
 
     renderAssistant('/shop');
     fireEvent.click(screen.getByLabelText('Open assistant'));
+    fireEvent.click(screen.getByText('🛒 Buying'));
 
-    fireEvent.change(screen.getByPlaceholderText('Ask about listings, pricing, or categories...'), {
-      target: { value: 'How much is this item?' },
-    });
-    fireEvent.click(screen.getByLabelText('Send message'));
-
-    expect(await screen.findByText('How much is this item?')).toBeTruthy();
+    expect(screen.getByText('How do I buy an item?')).toBeTruthy();
+    
+    fireEvent.click(screen.getByText('How do I buy an item?'));
 
     await waitFor(() => {
       expect(assistantMocks.generateAssistantReply).toHaveBeenCalledTimes(1);
     });
 
-    expect(await screen.findByText('Assistant response')).toBeTruthy();
+    expect(await screen.findByText('Here is how to buy...')).toBeTruthy();
   });
 
   it('shows backend configuration errors directly', async () => {
@@ -67,68 +61,49 @@ describe('AIAssistant', () => {
 
     renderAssistant();
     fireEvent.click(screen.getByLabelText('Open assistant'));
-
-    fireEvent.change(screen.getByPlaceholderText('Ask about listings, pricing, or categories...'), {
-      target: { value: 'Hello' },
-    });
-    fireEvent.click(screen.getByLabelText('Send message'));
+    fireEvent.click(screen.getByText('🛒 Buying'));
+    fireEvent.click(screen.getByText('How do I buy an item?'));
 
     expect(await screen.findByText('AI service configuration error. Contact the administrator.')).toBeTruthy();
   });
 
-  it('shows quota errors and supports enter-key send flow', async () => {
+  it('shows quota errors and supports back navigation', async () => {
     assistantMocks.generateAssistantReply
-      .mockRejectedValueOnce(new Error('AI assistant is temporarily busy. Please try again in a moment.'))
-      .mockResolvedValueOnce('Sent with Enter');
+      .mockRejectedValueOnce(new Error('AI assistant is temporarily busy. Please try again in a moment.'));
 
     renderAssistant('/shop');
     fireEvent.click(screen.getByLabelText('Open assistant'));
-
-    const input = screen.getByPlaceholderText('Ask about listings, pricing, or categories...');
-
-    fireEvent.change(input, { target: { value: 'Need pricing details' } });
-    fireEvent.click(screen.getByLabelText('Send message'));
+    fireEvent.click(screen.getByText('📦 Selling'));
+    fireEvent.click(screen.getByText('How do I list an item for sale?'));
 
     expect(await screen.findByText('AI assistant is temporarily busy. Please try again in a moment.')).toBeTruthy();
 
-    fireEvent.change(input, { target: { value: 'hello from enter' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-
-    expect(await screen.findByText('Sent with Enter')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Go back'));
+    expect(screen.getByText('📦 Selling')).toBeTruthy();
   });
 
-  it('ignores empty messages and blocks duplicate sends while loading', async () => {
-    let resolveReply: ((value: string) => void) | undefined;
-    const pendingReply = new Promise<string>((resolve) => {
-      resolveReply = resolve;
-    });
-    assistantMocks.generateAssistantReply.mockReturnValueOnce(pendingReply);
+  it('asks another question after first response', async () => {
+    assistantMocks.generateAssistantReply
+      .mockResolvedValueOnce('First response')
+      .mockResolvedValueOnce('Second response');
 
     renderAssistant('/shop');
     fireEvent.click(screen.getByLabelText('Open assistant'));
-
-    const input = screen.getByPlaceholderText('Ask about listings, pricing, or categories...');
-    const sendButton = screen.getByLabelText('Send message') as HTMLButtonElement;
-
-    fireEvent.click(sendButton);
-    expect(assistantMocks.generateAssistantReply).not.toHaveBeenCalled();
-
-    fireEvent.change(input, { target: { value: 'first message' } });
-    fireEvent.click(sendButton);
+    fireEvent.click(screen.getByText('💳 Payments'));
+    fireEvent.click(screen.getByText('What payment methods are accepted?'));
 
     await waitFor(() => {
       expect(assistantMocks.generateAssistantReply).toHaveBeenCalledTimes(1);
     });
 
-    expect(sendButton.disabled).toBe(true);
+    fireEvent.click(screen.getByText('Ask another question'));
+    fireEvent.click(screen.getByText('Is my payment information secure?'));
 
-    fireEvent.change(input, { target: { value: 'second message while loading' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => {
+      expect(assistantMocks.generateAssistantReply).toHaveBeenCalledTimes(2);
+    });
 
-    expect(assistantMocks.generateAssistantReply).toHaveBeenCalledTimes(1);
-
-    resolveReply?.('Loaded reply');
-    expect(await screen.findByText('Loaded reply')).toBeTruthy();
+    expect(await screen.findByText('Second response')).toBeTruthy();
   });
 
   it('uses default fallback text when error has no message', async () => {
@@ -136,32 +111,29 @@ describe('AIAssistant', () => {
 
     renderAssistant();
     fireEvent.click(screen.getByLabelText('Open assistant'));
+    fireEvent.click(screen.getByText('👤 My Account'));
+    fireEvent.click(screen.getByText('How do I verify my email?'));
 
-    fireEvent.change(screen.getByPlaceholderText('Ask about listings, pricing, or categories...'), {
-      target: { value: 'Hello fallback' },
-    });
-    fireEvent.click(screen.getByLabelText('Send message'));
-
-    expect(await screen.findByText('Failed to get a response.')).toBeTruthy();
+    expect(await screen.findByText('Failed to get a response. Please try again.')).toBeTruthy();
   });
 
-  it('handles generic errors and ignores shift-enter submission', async () => {
-    assistantMocks.generateAssistantReply.mockRejectedValueOnce(new Error('service unavailable'));
+  it('closes assistant and returns to home on reopen', async () => {
+    assistantMocks.generateAssistantReply.mockResolvedValueOnce('Response');
 
     renderAssistant('/shop');
     fireEvent.click(screen.getByLabelText('Open assistant'));
+    fireEvent.click(screen.getByText('📋 Orders'));
+    fireEvent.click(screen.getByText('How do I track my order?'));
 
-    const input = screen.getByPlaceholderText('Ask about listings, pricing, or categories...');
-    fireEvent.change(input, { target: { value: 'hello' } });
-    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
-
-    expect(assistantMocks.generateAssistantReply).not.toHaveBeenCalled();
-
-    fireEvent.keyDown(input, { key: 'Enter' });
-    expect(await screen.findByText('service unavailable')).toBeTruthy();
+    await waitFor(() => {
+      expect(assistantMocks.generateAssistantReply).toHaveBeenCalledTimes(1);
+    });
 
     fireEvent.click(screen.getByLabelText('Close assistant'));
-    expect(screen.queryByLabelText('Close assistant')).toBeNull();
+    expect(screen.queryByText('🛒 Buying')).not.toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText('Open assistant'));
+    expect(screen.getByText('🛒 Buying')).toBeTruthy();
   });
 
   it('uses message-page bottom offset for floating button', () => {

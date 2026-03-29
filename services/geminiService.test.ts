@@ -47,14 +47,14 @@ describe('generateAssistantReply', () => {
   });
 
   it('uses VITE_API_BASE_URL when provided', async () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'https://example.com/custom-api');
+    vi.stubEnv('VITE_API_BASE_URL', 'https://example.com/api');
     mockedAxios.post.mockResolvedValueOnce({ data: { reply: 'configured' } } as any);
 
     const { generateAssistantReply } = await loadService();
     const result = await generateAssistantReply([{ role: 'user', text: 'hello' }]);
 
     expect(result).toBe('configured');
-    expect(mockedAxios.post).toHaveBeenCalledWith('https://example.com/custom-api/ai/chat', {
+    expect(mockedAxios.post).toHaveBeenCalledWith('https://example.com/api/ai/chat', {
       messages: [{ role: 'user', text: 'hello' }],
     });
   });

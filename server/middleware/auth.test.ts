@@ -1,15 +1,10 @@
 import jwt from 'jsonwebtoken';
 import { createRequire } from 'module';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import mongoose from 'mongoose';
 
 const require = createRequire(import.meta.url);
 const authMiddlewarePath = require.resolve('./auth.js');
-
-vi.mock('../models/User', () => ({
-  default: {
-    findById: vi.fn(),
-  },
-}));
 
 const loadAuthMiddleware = () => {
   delete require.cache[authMiddlewarePath];
@@ -34,6 +29,10 @@ describe('server auth middleware', () => {
 
   afterEach(() => {
     process.env.JWT_SECRET = originalJwtSecret;
+    delete require.cache[authMiddlewarePath];
+    if (mongoose.models.User) {
+      delete mongoose.models.User;
+    }
   });
 
   it('returns 401 when authorization header is missing', () => {
@@ -54,16 +53,21 @@ describe('server auth middleware', () => {
 
   it('verifies bearer token, sets req.user, and calls next', async () => {
     vi.resetModules();
-    vi.clearAllMocks();
-
-    const UserMock = { findById: vi.fn().mockReturnValue({ select: vi.fn().mockResolvedValue({ isVerified: true }) }) };
-    vi.doMock('../models/User', () => ({ default: UserMock }));
+    if (mongoose.models.User) {
+      delete mongoose.models.User;
+    }
 
     const auth = loadAuthMiddleware();
     const token = jwt.sign({ userId: 'u-1', role: 'admin' }, 'middleware-secret');
 
+    // Mock the User model's findById method after auth is loaded
+    const User = require('../models/User.js');
+    vi.spyOn(User, 'findById').mockReturnValue({
+      select: vi.fn().mockResolvedValue({ isVerified: true })
+    });
+
     const req: any = {
-      header: vi.fn(() => `Bearer ${token}`),
+      header: vi.fn((header) => header === 'Authorization' ? `Bearer ${token}` : undefined),
     };
     const res = createRes();
     const next = vi.fn();
