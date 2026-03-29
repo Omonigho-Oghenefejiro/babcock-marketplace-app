@@ -22,10 +22,6 @@ const buildFrontendLoginRedirect = (params = {}) => {
   return `${frontendRedirectBase}/#/login${search ? `?${search}` : ''}`;
 };
 
-const buildVerificationLink = (email, code) => (
-  `${backendPublicBase}/api/auth/verify-email-link?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`
-);
-
 const consumeEmailVerification = async (user) => {
   user.isVerified = true;
   user.emailVerificationCode = undefined;
@@ -47,7 +43,7 @@ const issueAndSendVerificationChallenge = async (user) => {
   sendEmail({
     to: user.email,
     subject: 'Verify your Babcock Marketplace account',
-    text: `Your verification code is ${verificationCode}. It expires in 10 minutes.\n\nOr click this verification link:\n${verificationLink}`,
+    text: `Your verification code is: ${verificationCode}\n\nEnter this code in the app to verify your email. The code expires in 10 minutes.`,
   }).catch((error) => {
     // Log email failure but don't crash the request
     console.error('Verification email failed to send', { email: user.email, error: error.message });
