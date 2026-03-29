@@ -1,11 +1,27 @@
 const logger = require('./logger');
 const axios = require('axios');
 
-const brevoApiKey = String(process.env.BREVO_API_KEY || '')
+const brevoApiKey = String(process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY || '')
   .trim()
   .replace(/^['\"]|['\"]$/g, '');
 const fromEmail = process.env.SMTP_FROM || 'noreply@babcock-marketplace.com';
 const EMAIL_TIMEOUT = Number(process.env.EMAIL_TIMEOUT || 10000); // 10 seconds
+
+const maskKey = (value) => {
+  if (!value) return 'missing';
+  if (value.length <= 8) return `${value.slice(0, 2)}***`;
+  return `${value.slice(0, 4)}***${value.slice(-4)}`;
+};
+
+if (brevoApiKey) {
+  logger.info('Brevo key loaded', {
+    source: process.env.BREVO_API_KEY ? 'BREVO_API_KEY' : 'SENDINBLUE_API_KEY',
+    masked: maskKey(brevoApiKey),
+    length: brevoApiKey.length,
+  });
+} else {
+  logger.warn('Brevo key missing: set BREVO_API_KEY (or legacy SENDINBLUE_API_KEY)');
+}
 
 const sendEmail = async ({ to, subject, text }) => {
   if (!to || !subject) {
@@ -46,10 +62,16 @@ const sendEmail = async ({ to, subject, text }) => {
     logger.info('Email sent via Brevo', { to, subject });
     return { sent: true, fallback: false };
   } catch (error) {
+    const status = error?.response?.status;
+    const responseBody = error?.response?.data;
+
     logger.error('Email send failed', { 
       to, 
       subject, 
       error: error.message,
+      status,
+      responseBody,
+      keyHint: maskKey(brevoApiKey),
       timeout: EMAIL_TIMEOUT 
     });
     
