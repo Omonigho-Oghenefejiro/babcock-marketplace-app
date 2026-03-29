@@ -37,8 +37,6 @@ const issueAndSendVerificationChallenge = async (user) => {
   user.emailVerificationExpires = verificationExpiresAt;
   await user.save();
 
-  const verificationLink = buildVerificationLink(user.email, verificationCode);
-
   // Send email asynchronously (non-blocking) to prevent timeout from blocking registration
   sendEmail({
     to: user.email,

@@ -11,48 +11,43 @@ const loadNotificationService = () => {
   };
 };
 
-const clearSmtpEnv = () => {
-  delete process.env.SMTP_HOST;
-  delete process.env.SMTP_PORT;
-  delete process.env.SMTP_USER;
-  delete process.env.SMTP_PASS;
-  delete process.env.SMTP_FROM;
-};
-
 describe('server notificationService utils', () => {
   let logger: any;
-  let nodemailer: any;
+  let axios: any;
 
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    clearSmtpEnv();
+    delete process.env.BREVO_API_KEY;
+    delete process.env.SENDINBLUE_API_KEY;
     logger = require('./logger.js');
-    nodemailer = require('nodemailer');
+    axios = require('axios');
   });
 
   afterEach(() => {
-    clearSmtpEnv();
+    delete process.env.BREVO_API_KEY;
+    delete process.env.SENDINBLUE_API_KEY;
     vi.restoreAllMocks();
   });
 
   it('returns validation result when recipient or subject is missing', async () => {
     const notificationService = loadNotificationService();
 
-    await expect(notificationService.sendEmail({ to: '', subject: 'Hello', text: 'Body' })).resolves.toEqual({
+    const result1 = await notificationService.sendEmail({ to: '', subject: 'Hello', text: 'Body' });
+    expect(result1).toEqual({
       sent: false,
       reason: 'missing-recipient-or-subject',
     });
 
-    await expect(notificationService.sendEmail({ to: 'admin@babcock.edu.ng', subject: '', text: 'Body' })).resolves.toEqual({
+    const result2 = await notificationService.sendEmail({ to: 'admin@babcock.edu.ng', subject: '', text: 'Body' });
+    expect(result2).toEqual({
       sent: false,
       reason: 'missing-recipient-or-subject',
     });
   });
 
-  it('uses fallback logging when SMTP transport is not configured', async () => {
+  it('uses fallback logging when Brevo API is not configured', async () => {
     const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
-    const createTransportSpy = vi.spyOn(nodemailer, 'createTransport');
     const notificationService = loadNotificationService();
 
     const result = await notificationService.sendEmail({
@@ -61,52 +56,10 @@ describe('server notificationService utils', () => {
       text: 'Summary body here',
     });
 
-    expect(createTransportSpy).not.toHaveBeenCalled();
     expect(infoSpy).toHaveBeenCalledWith(
-      'Email notification queued (fallback)',
-      expect.objectContaining({ to: 'admin@babcock.edu.ng', subject: 'Daily digest' })
+      'Email queued (Brevo not configured)',
+      expect.objectContaining({ to: 'admin@babcock.edu.ng', subject: 'Daily digest', preview: 'Summary body here' })
     );
     expect(result).toEqual({ sent: true, fallback: true });
-  });
-
-  it('sends email via SMTP transporter when credentials are available', async () => {
-    process.env.SMTP_HOST = 'smtp.example.com';
-    process.env.SMTP_PORT = '465';
-    process.env.SMTP_USER = 'mailer@example.com';
-    process.env.SMTP_PASS = 'smtp-secret';
-    process.env.SMTP_FROM = 'no-reply@example.com';
-
-    const sendMailMock = vi.fn().mockResolvedValue({ messageId: 'msg-1' });
-    const createTransportSpy = vi
-      .spyOn(nodemailer, 'createTransport')
-      .mockReturnValue({ sendMail: sendMailMock } as any);
-    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
-
-    const notificationService = loadNotificationService();
-
-    expect(createTransportSpy).toHaveBeenCalledWith({
-      host: 'smtp.example.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: 'mailer@example.com',
-        pass: 'smtp-secret',
-      },
-    });
-
-    const result = await notificationService.sendEmail({
-      to: 'buyer@babcock.edu.ng',
-      subject: 'Order update',
-      text: 'Your order has shipped.',
-    });
-
-    expect(sendMailMock).toHaveBeenCalledWith({
-      from: 'no-reply@example.com',
-      to: 'buyer@babcock.edu.ng',
-      subject: 'Order update',
-      text: 'Your order has shipped.',
-    });
-    expect(infoSpy).not.toHaveBeenCalled();
-    expect(result).toEqual({ sent: true, fallback: false });
   });
 });

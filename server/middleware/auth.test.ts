@@ -5,6 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const require = createRequire(import.meta.url);
 const authMiddlewarePath = require.resolve('./auth.js');
 
+vi.mock('../models/User', () => ({
+  default: {
+    findById: vi.fn(),
+  },
+}));
+
 const loadAuthMiddleware = () => {
   delete require.cache[authMiddlewarePath];
   return require('./auth.js') as any;
@@ -30,7 +36,7 @@ describe('server auth middleware', () => {
     process.env.JWT_SECRET = originalJwtSecret;
   });
 
-  it('returns 401 when authorization header is missing', async () => {
+  it('returns 401 when authorization header is missing', () => {
     const auth = loadAuthMiddleware();
 
     const req: any = {
@@ -47,6 +53,12 @@ describe('server auth middleware', () => {
   });
 
   it('verifies bearer token, sets req.user, and calls next', async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+
+    const UserMock = { findById: vi.fn().mockReturnValue({ select: vi.fn().mockResolvedValue({ isVerified: true }) }) };
+    vi.doMock('../models/User', () => ({ default: UserMock }));
+
     const auth = loadAuthMiddleware();
     const token = jwt.sign({ userId: 'u-1', role: 'admin' }, 'middleware-secret');
 
@@ -56,14 +68,14 @@ describe('server auth middleware', () => {
     const res = createRes();
     const next = vi.fn();
 
-    auth(req, res, next);
+    await auth(req, res, next);
 
     expect(req.user).toEqual(expect.objectContaining({ userId: 'u-1', role: 'admin' }));
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it('returns 401 when token verification throws', async () => {
+  it('returns 401 when token verification throws', () => {
     const auth = loadAuthMiddleware();
 
     const req: any = {

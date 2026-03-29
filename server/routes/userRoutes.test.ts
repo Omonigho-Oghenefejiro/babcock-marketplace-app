@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const userRoutesPath = require.resolve('./userRoutes.js');
+const notificationServicePath = require.resolve('../utils/notificationService.js');
+
+vi.mock('../utils/notificationService.js', () => ({
+  sendEmail: vi.fn().mockResolvedValue({ sent: true }),
+}));
 
 const loadRouter = () => {
   delete require.cache[userRoutesPath];
@@ -31,14 +36,15 @@ describe('server userRoutes verification flow', () => {
   let User: any;
   let notificationService: any;
 
-  beforeEach(() => {
-    vi.resetModules();
+  beforeEach(async () => {
     vi.clearAllMocks();
     process.env.JWT_SECRET = 'unit-test-secret';
     delete require.cache[userRoutesPath];
+    delete require.cache[notificationServicePath];
 
     User = require('../models/User.js');
     notificationService = require('../utils/notificationService.js');
+    vi.mocked(notificationService.sendEmail).mockResolvedValue({ sent: true });
   });
 
   it('register accepts subdomain babcock email and sends verification code', async () => {
@@ -70,7 +76,7 @@ describe('server userRoutes verification flow', () => {
       expect.objectContaining({
         to: 'omonigho-okoro8673@student.babcock.edu.ng',
         subject: expect.stringContaining('Verify your Babcock Marketplace account'),
-        text: expect.stringContaining('/api/auth/verify-email-link?'),
+        text: expect.stringContaining('verification code is:'),
       })
     );
 

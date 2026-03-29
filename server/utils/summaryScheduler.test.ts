@@ -56,9 +56,10 @@ describe('server summaryScheduler utils', () => {
         text: expect.stringContaining('Orders: 3'),
       })
     );
-    expect(infoSpy).toHaveBeenCalledWith('Sales summary notifications sent', {
+    expect(infoSpy).toHaveBeenCalledWith('Sales summary notifications processed', {
       period: 'daily',
-      recipients: 2,
+      successful: 2,
+      total: 2,
       orders: 3,
     });
   });
@@ -112,9 +113,16 @@ describe('server summaryScheduler utils', () => {
   });
 
   it('logs daily and weekly scheduler callback failures', async () => {
-    const callbacks: Array<() => void> = [];
+    const timeoutCallbacks: Array<() => void> = [];
+    const intervalCallbacks: Array<() => void> = [];
+    
+    vi.spyOn(global, 'setTimeout').mockImplementation(((cb: () => void) => {
+      timeoutCallbacks.push(cb);
+      return 1 as any;
+    }) as any);
+    
     vi.spyOn(global, 'setInterval').mockImplementation(((cb: () => void) => {
-      callbacks.push(cb);
+      intervalCallbacks.push(cb);
       return 1 as any;
     }) as any);
 
@@ -128,13 +136,13 @@ describe('server summaryScheduler utils', () => {
     const { startSummaryScheduler } = loadSummaryScheduler();
     startSummaryScheduler();
 
-    callbacks[0]();
-    callbacks[1]();
+    // Execute the setTimeout callbacks (initial runs)
+    timeoutCallbacks[0]?.();
+    timeoutCallbacks[1]?.();
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
-    expect(errorSpy).toHaveBeenCalledWith('Daily summary failed', { error: 'mailer offline' });
-    expect(errorSpy).toHaveBeenCalledWith('Weekly summary failed', { error: 'mailer offline' });
+    expect(errorSpy).toHaveBeenCalledWith('Daily summary job crashed', { error: 'mailer offline' });
+    expect(errorSpy).toHaveBeenCalledWith('Weekly summary job crashed', { error: 'mailer offline' });
   });
 });

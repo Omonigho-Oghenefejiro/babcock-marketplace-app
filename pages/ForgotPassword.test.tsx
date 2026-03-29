@@ -56,7 +56,7 @@ describe('ForgotPassword page', () => {
       expect(forgotMocks.apiPost).toHaveBeenCalledWith('/auth/forgot-password', { email: 'user@babcock.edu.ng' });
     });
 
-    expect(await screen.findByText(/Now create your new password/i)).toBeTruthy();
+    expect(await screen.findByText(/Enter reset code and create a new password/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reset Password' })).toBeTruthy();
   });
 
@@ -98,23 +98,14 @@ describe('ForgotPassword page', () => {
     fireEvent.change(screen.getByPlaceholderText('Confirm new password'), {
       target: { value: '123456' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter code'), {
-      target: { value: 'WRONG' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Reset Password' }));
-    expect(await screen.findByText('Please enter the human verification code correctly.')).toBeTruthy();
-
-    const code = screen.getByText(/Human Check:/).querySelector('strong')?.textContent;
-    expect(code).toBeTruthy();
-
-    fireEvent.change(screen.getByPlaceholderText('Enter code'), {
-      target: { value: code },
+    fireEvent.change(screen.getByPlaceholderText('Reset code from email'), {
+      target: { value: 'abc123' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Reset Password' }));
 
     await waitFor(() => {
-      expect(forgotMocks.apiPost).toHaveBeenCalledWith('/auth/reset-password-direct', {
-        email: 'test@babcock.edu.ng',
+      expect(forgotMocks.apiPost).toHaveBeenCalledWith('/auth/reset-password', {
+        token: 'abc123',
         newPassword: '123456',
       });
     });
@@ -172,24 +163,16 @@ describe('ForgotPassword page', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
-    await screen.findByText(/Now create your new password/i);
+    await screen.findByText(/Enter reset code and create a new password/i);
 
-    const initialCode = screen.getByText(/Human Check:/).querySelector('strong')?.textContent;
-
-    fireEvent.click(screen.getByRole('button', { name: 'New' }));
-
-    const refreshedCode = screen.getByText(/Human Check:/).querySelector('strong')?.textContent;
-    expect(refreshedCode).toBeTruthy();
-    expect(refreshedCode).not.toBe(initialCode);
-
+    fireEvent.change(screen.getByPlaceholderText('Reset code from email'), {
+      target: { value: 'code123' },
+    });
     fireEvent.change(screen.getByPlaceholderText('New password'), {
       target: { value: '123456' },
     });
     fireEvent.change(screen.getByPlaceholderText('Confirm new password'), {
       target: { value: '123456' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('Enter code'), {
-      target: { value: refreshedCode },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Reset Password' }));
 
@@ -199,7 +182,7 @@ describe('ForgotPassword page', () => {
   it('shows reset-step API error when reset request fails', async () => {
     forgotMocks.apiPost
       .mockResolvedValueOnce({ data: { ok: true } })
-      .mockRejectedValueOnce({ response: { data: { message: 'No account found for this email' } } });
+      .mockRejectedValueOnce({ response: { data: { message: 'Invalid or expired reset token' } } });
 
     render(
       <MemoryRouter>
@@ -211,22 +194,19 @@ describe('ForgotPassword page', () => {
       target: { value: 'missing@babcock.edu.ng' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await screen.findByText(/Now create your new password/i);
+    await screen.findByText(/Enter reset code and create a new password/i);
 
-    const code = screen.getByText(/Human Check:/).querySelector('strong')?.textContent;
-    expect(code).toBeTruthy();
-
+    fireEvent.change(screen.getByPlaceholderText('Reset code from email'), {
+      target: { value: 'badcode' },
+    });
     fireEvent.change(screen.getByPlaceholderText('New password'), {
       target: { value: '123456' },
     });
     fireEvent.change(screen.getByPlaceholderText('Confirm new password'), {
       target: { value: '123456' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter code'), {
-      target: { value: code },
-    });
     fireEvent.click(screen.getByRole('button', { name: 'Reset Password' }));
 
-    expect(await screen.findByText('No account found for this email')).toBeTruthy();
+    expect(await screen.findByText('Invalid or expired reset token')).toBeTruthy();
   });
 });

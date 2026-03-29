@@ -1,19 +1,33 @@
 import axios from 'axios';
 
-const DEFAULT_API_BASE_URL = 'https://babcock-marketplace-app-production.up.railway.app/api';
-const normalizeApiBaseUrl = (raw: string) => {
-  let value = String(raw || '').trim();
+// Use localhost in tests, production Railway URL in production
+const DEFAULT_API_BASE_URL = import.meta.env.VITEST 
+  ? 'http://localhost:5000/api'
+  : 'https://babcock-marketplace-app-production.up.railway.app/api';
+
+const normalizeApiBaseUrl = (raw: string | undefined) => {
+  const trimmed = String(raw || '').trim();
+  
+  // If not provided or empty, use default
+  if (!trimmed) {
+    return DEFAULT_API_BASE_URL;
+  }
+  
+  // If explicitly provided, normalize it
+  let value = trimmed;
   if (!/^https?:\/\//i.test(value)) {
     value = `https://${value.replace(/^\/+/, '')}`;
   }
   value = value.replace(/\/+$/, '');
-  if (!/\/api$/i.test(value)) {
+  
+  // Only add /api if it doesn't already end with /api or a version pattern like /v1
+  if (!/\/api$/i.test(value) && !/\/v\d+$/i.test(value)) {
     value = `${value}/api`;
   }
   return value;
 };
 
-const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL);
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
 const getAccessToken = () => sessionStorage.getItem('token') || localStorage.getItem('token');
 const getRefreshToken = () => sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
