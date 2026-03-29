@@ -5,9 +5,12 @@ const require = createRequire(import.meta.url);
 const userRoutesPath = require.resolve('./userRoutes.js');
 const notificationServicePath = require.resolve('../utils/notificationService.js');
 
-vi.mock('../utils/notificationService.js', () => ({
-  sendEmail: vi.fn().mockResolvedValue({ sent: true }),
-}));
+vi.mock('../utils/notificationService.js', () => {
+  const sendEmailMock = vi.fn().mockResolvedValue({ sent: true });
+  return {
+    sendEmail: sendEmailMock,
+  };
+});
 
 const loadRouter = () => {
   delete require.cache[userRoutesPath];
@@ -40,11 +43,9 @@ describe('server userRoutes verification flow', () => {
     vi.clearAllMocks();
     process.env.JWT_SECRET = 'unit-test-secret';
     delete require.cache[userRoutesPath];
-    delete require.cache[notificationServicePath];
 
     User = require('../models/User.js');
     notificationService = require('../utils/notificationService.js');
-    vi.mocked(notificationService.sendEmail).mockResolvedValue({ sent: true });
   });
 
   it('register accepts subdomain babcock email and sends verification code', async () => {
