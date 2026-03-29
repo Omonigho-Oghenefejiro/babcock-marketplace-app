@@ -37,6 +37,7 @@ const createFindChain = (result: any, rejectErr?: Error) => {
 describe('server messageRoutes', () => {
   let Message: any;
   let Product: any;
+  let User: any;
 
   beforeEach(() => {
     vi.resetModules();
@@ -44,6 +45,7 @@ describe('server messageRoutes', () => {
     delete require.cache[messageRoutesPath];
     Message = require('../models/Message.js');
     Product = require('../models/Product.js');
+    User = require('../models/User.js');
   });
 
   it('returns grouped conversations for current user', async () => {
@@ -141,6 +143,9 @@ describe('server messageRoutes', () => {
     vi.spyOn(Product, 'findById').mockReturnValue({
       select: vi.fn().mockResolvedValue({ seller: receiverId }),
     } as any);
+    vi.spyOn(User, 'findById').mockReturnValue({
+      select: vi.fn().mockResolvedValue({ fullName: 'Test User' }),
+    } as any);
 
     const req: any = {
       user: { userId: senderId },
@@ -176,6 +181,9 @@ describe('server messageRoutes', () => {
 
     vi.spyOn(Product, 'findById').mockReturnValue({
       select: vi.fn().mockResolvedValue({ seller: 'u-2' }),
+    } as any);
+    vi.spyOn(User, 'findById').mockReturnValue({
+      select: vi.fn().mockResolvedValue({ fullName: 'Test User' }),
     } as any);
     vi.spyOn(Message.prototype, 'save').mockRejectedValue(new Error('send failed'));
 
@@ -272,8 +280,13 @@ describe('server messageRoutes', () => {
     const router = loadRouter();
     const handler = getRouteHandler(router, 'post', '/send');
 
-    const saveSpy = vi.spyOn(Message.prototype, 'save').mockResolvedValue(undefined as any);
+    const saveSpy = vi.spyOn(Message.prototype, 'save').mockImplementation(function (this: any) {
+      return Promise.resolve(this);
+    });
     vi.spyOn(Message.prototype, 'populate').mockResolvedValue(undefined as any);
+    vi.spyOn(User, 'findById').mockReturnValue({
+      select: vi.fn().mockResolvedValue({ fullName: 'Test User' }),
+    } as any);
 
     const req: any = {
       user: { userId: 'u-1' },
