@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Star } from 'lucide-react';
+import type { AxiosError } from 'axios';
 import { useStore } from '../contexts/StoreContext';
 import { getSafeInternalRedirectPath } from '../lib/redirect';
 
@@ -101,6 +102,7 @@ const Login = () => {
     expired: 'Verification link has expired. Please request a new verification email.',
     invalid: 'Invalid verification link. Please use the latest link from your email.',
     failed: 'Verification failed. Please try again.',
+    email_verification_required: 'Please verify your email with the code sent to your inbox before signing in.',
     google_failed: 'Google sign-in failed. Please try again.',
     google_not_configured: 'Google sign-in is not configured yet. Contact support.',
     google_profile_failed: 'Signed in but failed to load profile. Please retry.',
@@ -114,8 +116,9 @@ const Login = () => {
     try {
       await login(email, password);
       navigate(from, { replace: true });
-    } catch {
-      setError('Incorrect email or password. Please try again.');
+    } catch (err) {
+      const apiMessage = (err as AxiosError<{ message?: string }>)?.response?.data?.message;
+      setError(apiMessage || 'Incorrect email or password. Please try again.');
     } finally {
       setLoading(false);
     }

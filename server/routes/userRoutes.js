@@ -130,13 +130,9 @@ router.post('/register', async (req, res) => {
       }
 
       await issueAndSendVerificationChallenge(user);
-      const { accessToken, refreshToken } = await issueAuthTokens(user);
-
-      return res.status(200).json({
+      return res.status(202).json({
         message: 'Account already exists but is not verified. Verification email resent.',
-        token: accessToken,
-        refreshToken,
-        user: toAuthUserPayload(user),
+        requiresVerification: true,
       });
     }
 
@@ -170,13 +166,9 @@ router.post('/register', async (req, res) => {
 
     await issueAndSendVerificationChallenge(user);
 
-    const { accessToken, refreshToken } = await issueAuthTokens(user);
-
     res.status(201).json({
       message: 'User registered successfully. Verification email sent.',
-      token: accessToken,
-      refreshToken,
-      user: toAuthUserPayload(user),
+      requiresVerification: true,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -389,6 +381,14 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    if (!user.isVerified) {
+      await issueAndSendVerificationChallenge(user);
+      return res.status(403).json({
+        message: 'Email not verified. Enter the verification code sent to your email.',
+        requiresVerification: true,
+      });
+    }
+
     const { accessToken, refreshToken } = await issueAuthTokens(user);
 
     res.json({
@@ -416,6 +416,15 @@ router.post('/refresh-token', async (req, res) => {
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+
+    if (!user.isVerified) {
+      user.refreshTokens = [];
+      await user.save();
+      return res.status(403).json({
+        message: 'Email not verified. Please verify your account to continue.',
+        requiresVerification: true,
+      });
     }
 
     const tokenEntry = user.refreshTokens.find((entry) => entry.tokenHash === refreshTokenHash);
@@ -578,6 +587,11 @@ router.get(
   async (req, res) => {
     try {
       const user = req.user;
+      if (!user.isVerified) {
+        await issueAndSendVerificationChallenge(user);
+        return res.redirect(`${frontendRedirectBase}/#/login?error=email_verification_required`);
+      }
+
       const { accessToken, refreshToken } = await issueAuthTokens(user);
 
       const params = new URLSearchParams({
