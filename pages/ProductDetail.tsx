@@ -81,7 +81,8 @@ const ProductDetail = () => {
       navigate('/login', { state: { from: `/product/${id}`, message: 'Sign in to message the seller' } });
       return;
     }
-    navigate('/messages', { state: { sellerId: product.seller.id, productId: product.id, sellerName: product.seller.fullName || 'Seller' } });
+    const sellerId = product.seller?.id || (product.seller as any)?._id;
+    navigate('/messages', { state: { sellerId, productId: product.id, sellerName: product.seller.fullName || 'Seller' } });
   };
 
   const increment = () => setQty(q => {

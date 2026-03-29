@@ -53,19 +53,22 @@ const Messages = () => {
 
   useEffect(() => {
     if (!user || !location.state?.sellerId) return;
-    const { sellerId, productId } = location.state;
+    const { sellerId, productId } = location.state as { sellerId?: string; productId?: string };
+
+    if (!productId && !sellerId) return;
+
     const existing = conversations.find(c =>
       c.participants.includes(user.id) &&
-      c.participants.includes(sellerId) &&
-      (!productId || c.productId === productId)
+      ((productId && c.productId === productId) || (!productId && !!sellerId && c.participants.includes(sellerId)))
     );
+
     if (existing) {
       setSelectedConvId(existing.id);
     } else {
       setTempConversation({
-        receiverId: sellerId,
-        productId,
-        sellerName: allUsers.find(u => u.id === sellerId)?.name || 'Seller',
+        receiverId: sellerId || '',
+        productId: productId || '',
+        sellerName: (sellerId && allUsers.find(u => u.id === sellerId)?.name) || 'Seller',
       });
       setSelectedConvId('new');
     }
@@ -73,11 +76,13 @@ const Messages = () => {
 
   useEffect(() => {
     if (selectedConvId !== 'new' || !tempConversation || !user) return;
+
     const newConv = conversations.find(c =>
       c.participants.includes(user.id) &&
-      c.participants.includes(tempConversation.receiverId) &&
-      (!tempConversation.productId || c.productId === tempConversation.productId)
+      ((tempConversation.productId && c.productId === tempConversation.productId) ||
+        (!tempConversation.productId && tempConversation.receiverId && c.participants.includes(tempConversation.receiverId)))
     );
+
     if (newConv) {
       setSelectedConvId(newConv.id);
       setTempConversation(null);
