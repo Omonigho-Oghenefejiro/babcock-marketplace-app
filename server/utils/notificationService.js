@@ -1,5 +1,5 @@
 const logger = require('./logger');
-const SibApiV3Sdk = require('@getbrevo/brevo');
+const { BrevoClient } = require('@getbrevo/brevo');
 
 const brevoApiKey = process.env.BREVO_API_KEY;
 const fromEmail = process.env.SMTP_FROM || 'noreply@babcock-marketplace.com';
@@ -8,8 +8,12 @@ const EMAIL_TIMEOUT = Number(process.env.EMAIL_TIMEOUT || 10000); // 10 seconds
 // Initialize Brevo API client if key is provided
 let apiClient = null;
 if (brevoApiKey) {
-  apiClient = new SibApiV3Sdk.TransactionalEmailsApi();
-  apiClient.setApiKey(SibApiV3Sdk.ApiClient.instance.authentications['api-key'], brevoApiKey);
+  try {
+    apiClient = new BrevoClient({ apiKey: brevoApiKey });
+  } catch (error) {
+    logger.error('Brevo client initialization failed', { error: error.message });
+    apiClient = null;
+  }
 }
 
 const sendEmail = async ({ to, subject, text }) => {
@@ -29,9 +33,9 @@ const sendEmail = async ({ to, subject, text }) => {
 
   try {
     // Enforce timeout using Promise.race
-    const emailPromise = apiClient.sendTransacEmail({
+    const emailPromise = apiClient.transactionalEmails.sendTransacEmail({
       to: [{ email: to }],
-      from: { email: fromEmail, name: 'Babcock Marketplace' },
+      sender: { email: fromEmail, name: 'Babcock Marketplace' },
       subject,
       textContent: text,
     });
