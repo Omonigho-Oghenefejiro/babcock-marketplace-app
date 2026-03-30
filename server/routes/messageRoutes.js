@@ -108,7 +108,17 @@ router.post('/', auth, async (req, res) => {
     // Fetch receiver username
     const receiver = await User.findById(resolved.receiverId).select('username fullName');
     const receiverUsername = receiver?.username || receiver?.fullName || 'Unknown';
-
+    
+    // Validate receiver exists
+    if (!receiver) {
+      return res.status(400).json({ message: 'Recipient user not found' });
+    }
+    
+    // Prevent self-messaging
+    if (String(senderId) === String(resolved.receiverId)) {
+      return res.status(400).json({ message: 'Cannot message yourself' });
+    }
+    
     const message = new Message({
       sender: senderId,
       senderUsername,
@@ -182,7 +192,17 @@ router.post('/send', auth, async (req, res) => {
     // Fetch receiver username
     const receiver = await User.findById(resolved.receiverId).select('username fullName');
     const receiverUsername = receiver?.username || receiver?.fullName || 'Unknown';
-
+    
+    // Validate receiver exists
+    if (!receiver) {
+      return res.status(400).json({ message: 'Recipient user not found' });
+    }
+    
+    // Prevent self-messaging
+    if (String(senderId) === String(resolved.receiverId)) {
+      return res.status(400).json({ message: 'Cannot message yourself' });
+    }
+    
     const message = new Message({
       sender: senderId,
       senderUsername,
