@@ -1,11 +1,18 @@
 const express = require('express');
 const Message = require('../models/Message');
 const Product = require('../models/Product');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
 
 const resolveReceiverForMessage = async ({ senderId, receiverId, productId }) => {
+  // If receiverId is explicitly provided, use it (allows sellers to reply to buyers)
+  if (receiverId) {
+    return { receiverId: String(receiverId) };
+  }
+
+  // If productId is provided and no receiverId, get the seller (buyer initiating contact)
   if (productId) {
     const product = await Product.findById(productId).select('seller');
     if (!product || !product.seller) {
@@ -13,22 +20,10 @@ const resolveReceiverForMessage = async ({ senderId, receiverId, productId }) =>
     }
 
     const sellerId = String(product.seller);
-    if (sellerId === String(senderId)) {
-      return { error: 'You cannot start a product chat with yourself' };
-    }
-
     return { receiverId: sellerId };
   }
 
-  if (!receiverId) {
-    return { error: 'receiverId is required when productId is not provided' };
-  }
-
-  if (String(receiverId) === String(senderId)) {
-    return { error: 'You cannot message yourself' };
-  }
-
-  return { receiverId: String(receiverId) };
+  return { error: 'Either receiverId or productId is required' };
 };
 
 // Get all conversations for current user (grouped by other participant)
@@ -106,16 +101,19 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: resolved.error });
     }
 
-    // Fetch sender and receiver details for username capture
-    const User = require('../models/User');
-    const senderUser = await User.findById(senderId).select('fullName');
-    const receiverUser = await User.findById(resolved.receiverId).select('fullName');
+    // Fetch sender username
+    const sender = await User.findById(senderId).select('username fullName');
+    const senderUsername = sender?.username || sender?.fullName || 'Unknown';
+
+    // Fetch receiver username
+    const receiver = await User.findById(resolved.receiverId).select('username fullName');
+    const receiverUsername = receiver?.username || receiver?.fullName || 'Unknown';
 
     const message = new Message({
       sender: senderId,
-      senderUsername: senderUser?.fullName || 'Unknown User',
+      senderUsername,
       receiver: resolved.receiverId,
-      receiverUsername: receiverUser?.fullName || 'Unknown User',
+      receiverUsername,
       product: productId,
       content,
       attachments: Array.isArray(attachments) ? attachments : [],
@@ -177,16 +175,19 @@ router.post('/send', auth, async (req, res) => {
       return res.status(400).json({ message: resolved.error });
     }
 
-    // Fetch sender and receiver details for username capture
-    const User = require('../models/User');
-    const senderUser = await User.findById(senderId).select('fullName');
-    const receiverUser = await User.findById(resolved.receiverId).select('fullName');
+    // Fetch sender username
+    const sender = await User.findById(senderId).select('username fullName');
+    const senderUsername = sender?.username || sender?.fullName || 'Unknown';
+
+    // Fetch receiver username
+    const receiver = await User.findById(resolved.receiverId).select('username fullName');
+    const receiverUsername = receiver?.username || receiver?.fullName || 'Unknown';
 
     const message = new Message({
       sender: senderId,
-      senderUsername: senderUser?.fullName || 'Unknown User',
+      senderUsername,
       receiver: resolved.receiverId,
-      receiverUsername: receiverUser?.fullName || 'Unknown User',
+      receiverUsername,
       product: productId,
       content,
       attachments: Array.isArray(attachments) ? attachments : [],
