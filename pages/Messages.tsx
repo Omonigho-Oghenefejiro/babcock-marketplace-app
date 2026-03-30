@@ -151,7 +151,7 @@ const Messages = () => {
   if (!user) return null;
 
   const getOtherId = (c: Conversation) => c.participants.find(p => p !== user.id) ?? '';
-  const getUser = (id: string) => allUsers.find(u => u.id === id) ?? { name: 'Unknown', id };
+  const getUser = (id: string) => allUsers.find(u => u.id === id) ?? { name: 'Unknown', username: 'unknown', id };
   const getProduct = (pid?: string) => products.find(p => p.id === pid);
 
   const myConvs = conversations
@@ -239,7 +239,7 @@ const Messages = () => {
                     <Avatar name={other.name} size={42} bg={isSelected ? t.green : t.greenMid} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2, gap: 8 }}>
-                        <span style={{ fontWeight: unread > 0 ? 700 : 600, fontSize: 'clamp(0.8rem, 2vw, 0.875rem)', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>Unknown</span>
+                        <span style={{ fontWeight: unread > 0 ? 700 : 600, fontSize: 'clamp(0.8rem, 2vw, 0.875rem)', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{other.username || other.name}</span>
                         <span style={{ fontSize: 'clamp(0.6rem, 1.5vw, 0.65rem)', color: t.muted, flexShrink: 0 }}>{new Date(conv.updatedAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}</span>
                       </div>
                       {product && <p style={{ fontSize: 'clamp(0.6rem, 1.5vw, 0.68rem)', color: t.greenMid, fontWeight: 600, marginBottom: 2, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>📦 {product.title}</p>}
@@ -262,7 +262,7 @@ const Messages = () => {
                 </button>
                 <Avatar name={activeChatOther.name} size={40} bg={t.green} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 'clamp(0.85rem, 2vw, 0.95rem)', color: t.ink }}>Unknown</p>
+                  <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 'clamp(0.85rem, 2vw, 0.95rem)', color: t.ink }}>{activeChatOther.username || activeChatOther.name}</p>
                   {activeChatProduct && <p style={{ fontSize: 'clamp(0.65rem, 1.5vw, 0.72rem)', color: t.muted, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>About: {activeChatProduct.title}</p>}
                 </div>
               </div>
@@ -271,7 +271,7 @@ const Messages = () => {
                 <AnimatePresence initial={false}>
                   {(activeChat.messages ?? []).map((msg: any) => {
                     const isMe = msg.senderId === user.id;
-                    const senderName = 'Unknown';
+                    const senderName = msg.senderUsername || 'Unknown';
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.2 }} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', gap: 8, alignItems: 'flex-end' }}>
                         {!isMe && <Avatar name={senderName} size={28} bg={t.greenMid} />}
