@@ -62,4 +62,83 @@ describe('server notificationService utils', () => {
     );
     expect(result).toEqual({ sent: true, fallback: true });
   });
+
+  it('logs key metadata at startup when Brevo API key is configured', () => {
+    process.env.BREVO_API_KEY = 'abcd1234wxyz5678';
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
+
+    loadNotificationService();
+
+    expect(infoSpy).toHaveBeenCalledWith(
+      'Brevo key loaded',
+      expect.objectContaining({
+        source: 'BREVO_API_KEY',
+        masked: 'abcd***5678',
+        length: 16,
+      })
+    );
+  });
+
+  it('sends email through Brevo when configured', async () => {
+    process.env.BREVO_API_KEY = 'abcd1234wxyz5678';
+    process.env.SMTP_FROM = 'no-reply@babcock.edu.ng';
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
+    const postSpy = vi.spyOn(axios, 'post').mockResolvedValue({ data: { messageId: '1' } });
+
+    const notificationService = loadNotificationService();
+    const result = await notificationService.sendEmail({
+      to: 'admin@babcock.edu.ng',
+      subject: 'Summary',
+      text: 'Daily summary body',
+    });
+
+    expect(postSpy).toHaveBeenCalledWith(
+      'https://api.brevo.com/v3/smtp/email',
+      expect.objectContaining({
+        to: [{ email: 'admin@babcock.edu.ng' }],
+        sender: { email: 'no-reply@babcock.edu.ng', name: 'Babcock Marketplace' },
+        subject: 'Summary',
+        textContent: 'Daily summary body',
+      }),
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'api-key': 'abcd1234wxyz5678' }),
+      })
+    );
+    expect(infoSpy).toHaveBeenCalledWith('Email sent via Brevo', {
+      to: 'admin@babcock.edu.ng',
+      subject: 'Summary',
+    });
+    expect(result).toEqual({ sent: true, fallback: false });
+  });
+
+  it('returns queued failure details when Brevo API call fails', async () => {
+    process.env.BREVO_API_KEY = 'abcd1234wxyz5678';
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    vi.spyOn(axios, 'post').mockRejectedValue({
+      message: 'Request failed with status code 401',
+      response: { status: 401, data: { code: 'invalid_api_key' } },
+    });
+
+    const notificationService = loadNotificationService();
+    const result = await notificationService.sendEmail({
+      to: 'admin@babcock.edu.ng',
+      subject: 'Summary',
+      text: 'Daily summary body',
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Email send failed',
+      expect.objectContaining({
+        to: 'admin@babcock.edu.ng',
+        subject: 'Summary',
+        status: 401,
+        keyHint: 'abcd***5678',
+      })
+    );
+    expect(result).toEqual({
+      sent: false,
+      queued: true,
+      error: 'Request failed with status code 401',
+    });
+  });
 });

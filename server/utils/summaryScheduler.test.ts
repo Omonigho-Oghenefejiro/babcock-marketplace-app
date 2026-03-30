@@ -146,4 +146,62 @@ describe('server summaryScheduler utils', () => {
     expect(timeoutCallbacks).toHaveLength(2);
     expect(intervalCallbacks).toHaveLength(2);
   });
+
+  it('logs and exits cleanly when no admins exist for summary delivery', async () => {
+    vi.spyOn(Order, 'find').mockResolvedValue([] as any);
+    vi.spyOn(User, 'find').mockReturnValue({
+      select: vi.fn().mockResolvedValue([]),
+    } as any);
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
+
+    const { sendSalesSummary } = loadSummaryScheduler();
+    await sendSalesSummary('daily');
+
+    expect(infoSpy).toHaveBeenCalledWith('No admins found to send summary to', { period: 'daily' });
+  });
+
+  it('logs summary job failure when buildSummary throws', async () => {
+    vi.spyOn(Order, 'find').mockRejectedValue(new Error('db offline'));
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+
+    const { sendSalesSummary } = loadSummaryScheduler();
+    await sendSalesSummary('weekly');
+
+    expect(errorSpy).toHaveBeenCalledWith('weekly summary job failed', { error: 'db offline' });
+  });
+
+  it('logs timeout warnings for both scheduled interval jobs', () => {
+    const timeoutCallbacks: Array<() => void> = [];
+    const intervalCallbacks: Array<() => void> = [];
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((cb: () => void) => {
+      timeoutCallbacks.push(cb);
+      return 1 as any;
+    }) as any);
+    vi.spyOn(global, 'setInterval').mockImplementation(((cb: () => void) => {
+      intervalCallbacks.push(cb);
+      return 1 as any;
+    }) as any);
+    vi.spyOn(global, 'clearTimeout').mockImplementation((() => undefined) as any);
+
+    vi.spyOn(Order, 'find').mockResolvedValue([] as any);
+    vi.spyOn(User, 'find').mockReturnValue({
+      select: vi.fn().mockResolvedValue([]),
+    } as any);
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+
+    const { startSummaryScheduler } = loadSummaryScheduler();
+    startSummaryScheduler();
+
+    // Run interval callbacks to schedule timeout guards.
+    intervalCallbacks[0]?.();
+    intervalCallbacks[1]?.();
+
+    // Initial two callbacks are startup jobs; next two are timeout guards from interval jobs.
+    timeoutCallbacks[2]?.();
+    timeoutCallbacks[3]?.();
+
+    expect(warnSpy).toHaveBeenCalledWith('Daily summary job exceeded timeout and was terminated');
+    expect(warnSpy).toHaveBeenCalledWith('Weekly summary job exceeded timeout and was terminated');
+  });
 });
