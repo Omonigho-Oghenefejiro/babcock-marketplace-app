@@ -176,6 +176,11 @@ const PaymentSimulation = () => {
     window.alert('Test card copied!');
   };
 
+  const copyBankAccount = async () => {
+    await navigator.clipboard.writeText('2033267568');
+    window.alert('Bank account number copied!');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0A1929] via-[#0F2744] to-[#1A3A5F] font-sans">
       <div className="bg-[#0D1E30] border-b border-[#1E3A5F] py-4">
@@ -322,7 +327,7 @@ const PaymentSimulation = () => {
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                           <h3 className="text-white font-semibold text-lg mb-4">
                             {paymentMethod === 'card' && 'Enter Card Details'}
-                            {paymentMethod === 'bank' && 'Select Your Bank'}
+                            {paymentMethod === 'bank' && 'Bank Transfer Details'}
                             {paymentMethod === 'ussd' && 'USSD Payment'}
                             {paymentMethod === 'mobile' && 'Mobile Money'}
                           </h3>
@@ -388,31 +393,25 @@ const PaymentSimulation = () => {
 
                           {paymentMethod === 'bank' && (
                             <>
-                              <select
-                                value={formData.bank}
-                                onChange={e => setFormData({ ...formData, bank: e.target.value })}
-                                className="w-full bg-[#0A1929] border border-[#1E3A5F] rounded-xl px-4 py-3 text-white focus:border-[#00A3FF] focus:outline-none"
-                              >
-                                <option value="">Select your bank</option>
-                                <option>Access Bank</option>
-                                <option>GTBank</option>
-                                <option>First Bank</option>
-                                <option>UBA</option>
-                                <option>Zenith Bank</option>
-                              </select>
-
-                              <div>
-                                <label className="block text-[#6B8EB5] text-sm mb-2">Account Number</label>
-                                <input
-                                  type="text"
-                                  placeholder="0123456789"
-                                  maxLength={10}
-                                  value={formData.accountNumber}
-                                  onChange={e =>
-                                    setFormData({ ...formData, accountNumber: e.target.value.replace(/\D/g, '') })
-                                  }
-                                  className="w-full bg-[#0A1929] border border-[#1E3A5F] rounded-xl px-4 py-3 text-white focus:border-[#00A3FF] focus:outline-none"
-                                />
+                              <div className="rounded-xl border border-[#1E3A5F] bg-[#0A1929] p-4 space-y-3">
+                                <p className="text-[#6B8EB5] text-sm">Transfer the exact amount to:</p>
+                                <div className="flex items-center justify-between rounded-lg bg-[#10253B] border border-[#1E3A5F] px-3 py-2">
+                                  <span className="text-[#6B8EB5] text-sm">Bank</span>
+                                  <span className="text-white font-semibold">UBA</span>
+                                </div>
+                                <div className="flex items-center justify-between rounded-lg bg-[#10253B] border border-[#1E3A5F] px-3 py-2">
+                                  <span className="text-[#6B8EB5] text-sm">Account Number</span>
+                                  <span className="text-white font-semibold tracking-wider">2033267568</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={copyBankAccount}
+                                  className="w-full mt-1 flex items-center justify-center gap-2 rounded-lg border border-[#1E3A5F] bg-[#10253B] px-3 py-2 text-[#6B8EB5] hover:text-white hover:border-[#00A3FF] transition-colors"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                  Copy account number
+                                </button>
+                                <p className="text-xs text-[#6B8EB5]">Use this account for all demo bank transfer payments.</p>
                               </div>
                             </>
                           )}
