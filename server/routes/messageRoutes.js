@@ -6,6 +6,16 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
+const pickDisplayName = (...values) => {
+  for (const value of values) {
+    const normalized = String(value || '').trim();
+    if (!normalized) continue;
+    if (normalized.toLowerCase() === 'unknown') continue;
+    return normalized;
+  }
+  return 'Unknown';
+};
+
 const resolveReceiverForMessage = async ({ senderId, receiverId, productId }) => {
   // If receiverId is explicitly provided, use it (allows sellers to reply to buyers)
   if (receiverId) {
@@ -64,9 +74,9 @@ router.get('/', auth, async (req, res) => {
       conversationsMap.get(convKey).messages.push({
         id: msg._id.toString(),
         senderId: msg.sender._id.toString(),
-        senderUsername: msg.senderUsername || msg.sender?.username || msg.sender?.fullName || 'Unknown',
+        senderUsername: pickDisplayName(msg.senderUsername, msg.sender?.username, msg.sender?.fullName),
         receiverId: msg.receiver._id.toString(),
-        receiverUsername: msg.receiverUsername || msg.receiver?.username || msg.receiver?.fullName || 'Unknown',
+        receiverUsername: pickDisplayName(msg.receiverUsername, msg.receiver?.username, msg.receiver?.fullName),
         content: msg.content,
         attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
         timestamp: msg.createdAt.toISOString(),
