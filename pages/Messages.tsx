@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Search, ArrowLeft, MessageCircle, Check } from 'lucide-react';
@@ -34,16 +34,24 @@ const Messages = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const locationState = (location.state || {}) as { sellerId?: string; productId?: string; sellerName?: string };
 
-  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
+  const [selectedConvId, setSelectedConvId] = useState<string | null>(() => (locationState.sellerId ? 'new' : null));
   const [inputText, setInputText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [forceChatOnMobile, setForceChatOnMobile] = useState<boolean>(() => Boolean(locationState.sellerId));
   const [isPageVisible, setIsPageVisible] = useState(() =>
     typeof document === 'undefined' ? true : document.visibilityState === 'visible'
   );
   const [tempConversation, setTempConversation] = useState<{
     receiverId: string; productId: string; sellerName: string;
-  } | null>(null);
+  } | null>(() => (locationState.sellerId
+    ? {
+      receiverId: locationState.sellerId,
+      productId: locationState.productId || '',
+      sellerName: locationState.sellerName || 'Seller',
+    }
+    : null));
 
   const markedRef = useRef<Set<string>>(new Set());
 
@@ -64,6 +72,8 @@ const Messages = () => {
 
     if (existing) {
       setSelectedConvId(existing.id);
+      setForceChatOnMobile(true);
+      setTempConversation(null);
     } else {
       setTempConversation({
         receiverId: sellerId || '',
@@ -71,6 +81,7 @@ const Messages = () => {
         sellerName: (sellerId && allUsers.find(u => u.id === sellerId)?.name) || 'Seller',
       });
       setSelectedConvId('new');
+      setForceChatOnMobile(true);
     }
   }, [user, location.state, allUsers, conversations]);
 
@@ -150,8 +161,48 @@ const Messages = () => {
 
   if (!user) return null;
 
+  const isMobileViewport = () => (typeof window !== 'undefined'
+    ? window.matchMedia('(max-width: 768px)').matches
+    : false);
+
+  const namesFromMessages = useMemo(() => {
+    const map = new Map<string, string>();
+    if (user.id) {
+      map.set(user.id, user.username || user.name || 'You');
+    }
+    conversations.forEach((conv: any) => {
+      (conv.messages || []).forEach((msg: any) => {
+        if (msg.senderId && msg.senderUsername && msg.senderUsername !== 'Unknown') {
+          map.set(msg.senderId, msg.senderUsername);
+        }
+        if (msg.receiverId && msg.receiverUsername && msg.receiverUsername !== 'Unknown') {
+          map.set(msg.receiverId, msg.receiverUsername);
+        }
+      });
+    });
+    return map;
+  }, [conversations, user.id, user.name, user.username]);
+
   const getOtherId = (c: Conversation) => c.participants.find(p => p !== user.id) ?? '';
-  const getUser = (id: string) => allUsers.find(u => u.id === id) ?? { name: 'Unknown', username: 'unknown', id };
+  const getUser = (id: string) => {
+    const found = allUsers.find(u => u.id === id);
+    if (found) return found;
+
+    const inferredName = namesFromMessages.get(id);
+    if (id === user.id) {
+      return {
+        id,
+        name: user.name,
+        username: user.username,
+      };
+    }
+
+    return {
+      id,
+      name: inferredName || 'Unknown',
+      username: inferredName,
+    };
+  };
   const getProduct = (pid?: string) => products.find(p => p.id === pid);
 
   const myConvs = conversations
@@ -160,7 +211,8 @@ const Messages = () => {
 
   const filtered = myConvs.filter(c => {
     const other = getUser(getOtherId(c));
-    return (other.name ?? '').toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.toLowerCase();
+    return (other.name ?? '').toLowerCase().includes(term) || (other.username ?? '').toLowerCase().includes(term);
   });
 
   const currentConv = conversations.find(c => c.id === selectedConvId);
@@ -201,7 +253,7 @@ const Messages = () => {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         <div
           style={{ width: 'clamp(260px, 100%, 320px)', flexShrink: 0, background: '#fff', borderRight: `1.5px solid ${t.border}`, display: 'flex', flexDirection: 'column' }}
-          className={`messages-sidebar ${selectedConvId ? 'hidden sm:flex' : 'flex'}`}
+          className={`messages-sidebar ${selectedConvId || forceChatOnMobile ? 'hidden md:flex' : 'flex'}`}
         >
           <div style={{ padding: '14px 16px', borderBottom: `1px solid ${t.border}` }}>
             <div style={{ position: 'relative' }}>
@@ -233,7 +285,12 @@ const Messages = () => {
                 return (
                   <button
                     key={conv.id}
-                    onClick={() => setSelectedConvId(conv.id)}
+                    onClick={() => {
+                      setSelectedConvId(conv.id);
+                      if (isMobileViewport()) {
+                        setForceChatOnMobile(true);
+                      }
+                    }}
                     style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 'clamp(8px, 2vw, 12px)', padding: 'clamp(10px, 2vw, 14px) clamp(12px, 3vw, 16px)', border: 'none', cursor: 'pointer', textAlign: 'left', background: isSelected ? t.greenPale : 'transparent', borderLeft: `3px solid ${isSelected ? t.green : 'transparent'}`, borderBottom: `1px solid ${t.border}` }}
                   >
                     <Avatar name={other.name} size={42} bg={isSelected ? t.green : t.greenMid} />
@@ -253,11 +310,11 @@ const Messages = () => {
           </div>
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: t.cream }} className={`messages-chat ${!selectedConvId ? 'hidden sm:flex' : 'flex'}`}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: t.cream }} className={`messages-chat ${!selectedConvId && !forceChatOnMobile ? 'hidden md:flex' : 'flex'}`}>
           {activeChat && activeChatOther ? (
             <>
               <div style={{ background: '#fff', borderBottom: `1.5px solid ${t.border}`, padding: 'clamp(8px, 2vw, 12px) clamp(12px, 4vw, 20px)', display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 12px)', flexShrink: 0 }}>
-                <button onClick={() => setSelectedConvId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.muted, display: 'flex', padding: 4, flexShrink: 0 }} className="sm:hidden">
+                <button onClick={() => { setSelectedConvId(null); setForceChatOnMobile(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.muted, display: 'flex', padding: 4, flexShrink: 0 }} className="md:hidden">
                   <ArrowLeft size={18} />
                 </button>
                 <Avatar name={activeChatOther.name} size={40} bg={t.green} />
@@ -271,7 +328,7 @@ const Messages = () => {
                 <AnimatePresence initial={false}>
                   {(activeChat.messages ?? []).map((msg: any) => {
                     const isMe = msg.senderId === user.id;
-                    const senderName = msg.senderUsername || 'Unknown';
+                    const senderName = msg.senderUsername || namesFromMessages.get(msg.senderId) || getUser(msg.senderId)?.name || 'Unknown';
                     return (
                       <motion.div key={msg.id} initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.2 }} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', gap: 8, alignItems: 'flex-end' }}>
                         {!isMe && <Avatar name={senderName} size={28} bg={t.greenMid} />}
@@ -318,7 +375,7 @@ const Messages = () => {
       </div>
 
       <style>{`
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
           .messages-sidebar { width: 100% !important; }
           .messages-chat    { width: 100% !important; }
         }

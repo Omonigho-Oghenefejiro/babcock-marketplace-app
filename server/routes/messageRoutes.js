@@ -35,8 +35,8 @@ router.get('/', auth, async (req, res) => {
     const messages = await Message.find({
       $or: [{ sender: userId }, { receiver: userId }]
     })
-      .populate('sender', 'fullName profileImage')
-      .populate('receiver', 'fullName profileImage')
+      .populate('sender', 'username fullName profileImage')
+      .populate('receiver', 'username fullName profileImage')
       .populate('product', 'title images')
       .sort({ createdAt: -1 });
 
@@ -64,9 +64,9 @@ router.get('/', auth, async (req, res) => {
       conversationsMap.get(convKey).messages.push({
         id: msg._id.toString(),
         senderId: msg.sender._id.toString(),
-        senderUsername: msg.senderUsername,
+        senderUsername: msg.senderUsername || msg.sender?.username || msg.sender?.fullName || 'Unknown',
         receiverId: msg.receiver._id.toString(),
-        receiverUsername: msg.receiverUsername,
+        receiverUsername: msg.receiverUsername || msg.receiver?.username || msg.receiver?.fullName || 'Unknown',
         content: msg.content,
         attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
         timestamp: msg.createdAt.toISOString(),
