@@ -59,8 +59,6 @@ const PaymentSimulation = () => {
     expiry: '',
     cvv: '',
     email: 'student@babcock.edu.ng',
-    bank: '',
-    accountNumber: '',
   });
 
   const paymentState = (location.state as PaymentState | null) ?? null;
@@ -108,6 +106,14 @@ const PaymentSimulation = () => {
 
     return () => window.clearInterval(timer);
   }, [processing]);
+
+  useEffect(() => {
+    if (processing && countdown <= 0 && !success) {
+      setProcessing(false);
+      setSuccess(true);
+      setReceiptRef(`PS_${Math.random().toString(36).slice(2, 9).toUpperCase()}`);
+    }
+  }, [processing, countdown, success]);
 
   useEffect(() => {
     if (!success || orderCreatedRef.current) {
@@ -174,11 +180,6 @@ const PaymentSimulation = () => {
   const copyTestCard = async () => {
     await navigator.clipboard.writeText('4242 4242 4242 4242');
     window.alert('Test card copied!');
-  };
-
-  const copyBankAccount = async () => {
-    await navigator.clipboard.writeText('2033267568');
-    window.alert('Bank account number copied!');
   };
 
   return (
@@ -394,24 +395,16 @@ const PaymentSimulation = () => {
                           {paymentMethod === 'bank' && (
                             <>
                               <div className="rounded-xl border border-[#1E3A5F] bg-[#0A1929] p-4 space-y-3">
-                                <p className="text-[#6B8EB5] text-sm">Transfer the exact amount to:</p>
+                                <p className="text-[#6B8EB5] text-sm">Transfer the exact amount to this account:</p>
                                 <div className="flex items-center justify-between rounded-lg bg-[#10253B] border border-[#1E3A5F] px-3 py-2">
                                   <span className="text-[#6B8EB5] text-sm">Bank</span>
                                   <span className="text-white font-semibold">UBA</span>
                                 </div>
                                 <div className="flex items-center justify-between rounded-lg bg-[#10253B] border border-[#1E3A5F] px-3 py-2">
                                   <span className="text-[#6B8EB5] text-sm">Account Number</span>
-                                  <span className="text-white font-semibold tracking-wider">2033267568</span>
+                                  <span className="text-white font-semibold tracking-wider">123456789</span>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={copyBankAccount}
-                                  className="w-full mt-1 flex items-center justify-center gap-2 rounded-lg border border-[#1E3A5F] bg-[#10253B] px-3 py-2 text-[#6B8EB5] hover:text-white hover:border-[#00A3FF] transition-colors"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                  Copy account number
-                                </button>
-                                <p className="text-xs text-[#6B8EB5]">Use this account for all demo bank transfer payments.</p>
+                                <p className="text-xs text-[#6B8EB5]">Bank: UBA | Account Number: 123456789</p>
                               </div>
                             </>
                           )}
@@ -481,7 +474,7 @@ const PaymentSimulation = () => {
                             onClick={handleBeginProcessing}
                             className="w-full bg-[#00A3FF] hover:bg-[#0093E6] text-white font-semibold py-4 rounded-xl transition-colors"
                           >
-                            Pay ₦{product.price.toLocaleString()}
+                            {paymentMethod === 'bank' ? 'I Have Made Transfer' : `Pay ₦${product.price.toLocaleString()}`}
                           </button>
 
                           <button
