@@ -55,7 +55,7 @@ const AdminDashboard = () => {
             textAlign: 'center',
             background: 'rgba(255,255,255,0.07)',
             border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 24, padding: '56px 48px',
+            borderRadius: 24, padding: 'clamp(40px, 8vw, 56px) clamp(32px, 8vw, 48px)',
             backdropFilter: 'blur(12px)',
           }}
         >
@@ -163,7 +163,7 @@ const AdminDashboard = () => {
     <div style={{ background: t.cream, minHeight: '100vh', fontFamily: "'Instrument Sans', sans-serif" }}>
 
       {/* ── Header ── */}
-      <div style={{ background: t.green, padding: '44px 24px 60px', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ background: t.green, padding: 'clamp(32px, 8vw, 44px) clamp(16px, 5vw, 24px) clamp(48px, 10vw, 60px)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundImage: `repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 80px)` }} />
         <div style={{ position: 'absolute', right: '-5%', top: '-20%', width: 420, height: 420, background: `radial-gradient(circle, rgba(244,162,38,0.15) 0%, transparent 70%)`, borderRadius: '50%' }} />
 
@@ -194,11 +194,11 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '28px 24px 80px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(18px, 4vw, 28px) clamp(16px, 5vw, 24px) clamp(60px, 12vw, 80px)' }}>
 
         {/* ── Stat cards ── */}
         <Fade delay={0.05}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 'clamp(12px, 3vw, 16px)', marginBottom: 'clamp(24px, 5vw, 32px)' }}>
             {statCards.map((s, i) => (
               <div key={i} style={{
                 background: '#fff', border: `1.5px solid ${t.border}`,
@@ -277,7 +277,7 @@ const AdminDashboard = () => {
                 <div>
                   {(products ?? []).slice(0, 5).map((p: any, i: number) => (
                     <div key={p.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px',
+                      display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 12px)', padding: 'clamp(10px, 2vw, 12px) clamp(14px, 3vw, 20px)',
                       borderBottom: i < 4 ? `1px solid ${t.border}` : 'none',
                     }}>
                       <div style={{ width: 40, height: 40, borderRadius: 8, overflow: 'hidden', background: t.cream, flexShrink: 0, border: `1px solid ${t.border}` }}>
@@ -310,7 +310,7 @@ const AdminDashboard = () => {
                 <div>
                   {(allUsers ?? []).slice(0, 5).map((u: any, i: number) => (
                     <div key={u.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px',
+                      display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 12px)', padding: 'clamp(10px, 2vw, 12px) clamp(14px, 3vw, 20px)',
                       borderBottom: i < 4 ? `1px solid ${t.border}` : 'none',
                     }}>
                       <div style={{
@@ -340,7 +340,7 @@ const AdminDashboard = () => {
               {/* Quick actions */}
               <div style={{ background: '#fff', border: `1.5px solid ${t.border}`, borderRadius: 20, padding: '20px', gridColumn: '1 / -1' }}>
                 <h3 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '0.95rem', color: t.ink, marginBottom: 16 }}>Quick Actions</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 'clamp(8px, 2vw, 12px)' }}>
                   {[
                     { emoji: '👥', label: 'Manage Users',     desc: 'View & moderate accounts',    action: () => setActiveTab('users')    },
                     { emoji: '📦', label: 'Review Products',  desc: 'Approve or remove listings',  action: () => setActiveTab('products') },
@@ -576,7 +576,7 @@ const AdminDashboard = () => {
           padding: 16,
         }} onClick={() => !isUpdatingProduct && setSelectedProduct(null)}>
           <div style={{
-            width: 'min(760px, 100%)', maxHeight: '90vh', overflowY: 'auto',
+            width: 'clamp(300px, 90vw, 760px)', maxHeight: '90vh', overflowY: 'auto',
             background: '#fff', borderRadius: 16, border: `1px solid ${t.border}`, padding: 20,
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
@@ -647,7 +647,7 @@ const AdminDashboard = () => {
           padding: 16,
         }} onClick={() => setSelectedUser(null)}>
           <div style={{
-            width: 'min(620px, 100%)', maxHeight: '88vh', overflowY: 'auto',
+            width: 'clamp(300px, 90vw, 620px)', maxHeight: '88vh', overflowY: 'auto',
             background: '#fff', borderRadius: 16, border: `1px solid ${t.border}`, padding: 20,
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
