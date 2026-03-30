@@ -214,6 +214,23 @@ const Messages = () => {
     };
   };
   const getProduct = (pid?: string) => products.find(p => p.id === pid);
+  const getConversationOtherName = (conv: Conversation) => {
+    const otherId = getOtherId(conv);
+    const otherUser = getUser(otherId);
+    const fromUser = resolveDisplayName(otherUser.username, otherUser.name);
+    if (fromUser !== 'Unknown') return fromUser;
+
+    const product = getProduct(conv.productId);
+    const seller: any = product?.seller;
+    const sellerId = seller?.id || seller?._id;
+    if (sellerId && String(sellerId) === String(otherId)) {
+      const sellerName = resolveDisplayName(seller?.username, seller?.name, seller?.fullName);
+      if (sellerName !== 'Unknown') return sellerName;
+    }
+
+    const firstMsg: any = conv.messages?.[0];
+    return resolveDisplayName(firstMsg?.senderUsername, firstMsg?.receiverUsername);
+  };
 
   const myConvs = conversations
     .filter(c => c.participants.includes(user.id))
@@ -221,8 +238,11 @@ const Messages = () => {
 
   const filtered = myConvs.filter(c => {
     const other = getUser(getOtherId(c));
+    const otherDisplay = getConversationOtherName(c);
     const term = searchTerm.toLowerCase();
-    return (other.name ?? '').toLowerCase().includes(term) || (other.username ?? '').toLowerCase().includes(term);
+    return (other.name ?? '').toLowerCase().includes(term)
+      || (other.username ?? '').toLowerCase().includes(term)
+      || otherDisplay.toLowerCase().includes(term);
   });
 
   const currentConv = conversations.find(c => c.id === selectedConvId);
@@ -247,6 +267,9 @@ const Messages = () => {
     : null;
   const activeChatOther = activeChatOtherId ? getUser(activeChatOtherId) : null;
   const activeChatProduct = activeChat ? getProduct(activeChat.productId) : null;
+  const activeChatDisplayName = activeChat
+    ? getConversationOtherName(activeChat)
+    : resolveDisplayName(tempConversation?.sellerName, activeChatOther?.username, activeChatOther?.name);
 
   return (
     <div style={{ background: t.cream, height: 'calc(100vh - 4rem)', display: 'flex', flexDirection: 'column', fontFamily: "'Instrument Sans', sans-serif" }}>
@@ -286,8 +309,7 @@ const Messages = () => {
               </div>
             ) : (
               filtered.map(conv => {
-                const otherId = getOtherId(conv);
-                const other = getUser(otherId);
+                const otherDisplayName = getConversationOtherName(conv);
                 const lastMsg = conv.messages[conv.messages.length - 1];
                 const product = getProduct(conv.productId);
                 const unread = conv.messages.filter(m => m.senderId !== user.id && !m.read).length;
@@ -303,10 +325,10 @@ const Messages = () => {
                     }}
                     style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 'clamp(8px, 2vw, 12px)', padding: 'clamp(10px, 2vw, 14px) clamp(12px, 3vw, 16px)', border: 'none', cursor: 'pointer', textAlign: 'left', background: isSelected ? t.greenPale : 'transparent', borderLeft: `3px solid ${isSelected ? t.green : 'transparent'}`, borderBottom: `1px solid ${t.border}` }}
                   >
-                    <Avatar name={other.name} size={42} bg={isSelected ? t.green : t.greenMid} />
+                    <Avatar name={otherDisplayName} size={42} bg={isSelected ? t.green : t.greenMid} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2, gap: 8 }}>
-                        <span style={{ fontWeight: unread > 0 ? 700 : 600, fontSize: 'clamp(0.8rem, 2vw, 0.875rem)', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{resolveDisplayName(other.username, other.name)}</span>
+                        <span style={{ fontWeight: unread > 0 ? 700 : 600, fontSize: 'clamp(0.8rem, 2vw, 0.875rem)', color: t.ink, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{otherDisplayName}</span>
                         <span style={{ fontSize: 'clamp(0.6rem, 1.5vw, 0.65rem)', color: t.muted, flexShrink: 0 }}>{new Date(conv.updatedAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}</span>
                       </div>
                       {product && <p style={{ fontSize: 'clamp(0.6rem, 1.5vw, 0.68rem)', color: t.greenMid, fontWeight: 600, marginBottom: 2, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>📦 {product.title}</p>}
@@ -327,9 +349,9 @@ const Messages = () => {
                 <button onClick={() => { setSelectedConvId(null); setForceChatOnMobile(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.muted, display: 'flex', padding: 4, flexShrink: 0 }} className="md:hidden">
                   <ArrowLeft size={18} />
                 </button>
-                <Avatar name={activeChatOther.name} size={40} bg={t.green} />
+                <Avatar name={activeChatDisplayName} size={40} bg={t.green} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 'clamp(0.85rem, 2vw, 0.95rem)', color: t.ink }}>{resolveDisplayName(activeChatOther.username, activeChatOther.name)}</p>
+                  <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 'clamp(0.85rem, 2vw, 0.95rem)', color: t.ink }}>{activeChatDisplayName}</p>
                   {activeChatProduct && <p style={{ fontSize: 'clamp(0.65rem, 1.5vw, 0.72rem)', color: t.muted, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>About: {activeChatProduct.title}</p>}
                 </div>
               </div>
