@@ -259,7 +259,7 @@ const Shop = () => {
 
       {/* ── Page Header ── */}
       <div style={{
-        background: t.green, padding: '48px 24px 56px', position: 'relative', overflow: 'hidden',
+        background: t.green, padding: 'clamp(32px, 8vw, 48px) clamp(16px, 5vw, 24px) clamp(40px, 9vw, 56px)', position: 'relative', overflow: 'hidden',
       }}>
         {/* Texture lines */}
         <div style={{
@@ -305,7 +305,7 @@ const Shop = () => {
       </div>
 
       {/* ── Toolbar ── */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 24px 0' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(16px, 4vw, 24px) clamp(16px, 5vw, 24px) 0' }}>
         <div style={{
           background: '#fff', border: `1.5px solid ${t.border}`, borderRadius: 16,
           padding: '12px 16px', display: 'flex', alignItems: 'center',
@@ -430,14 +430,14 @@ const Shop = () => {
       </div>
 
       {/* ── Main Layout ── */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 24px 72px', display: 'flex', gap: 28, alignItems: 'flex-start' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(16px, 4vw, 24px) clamp(16px, 5vw, 24px) clamp(60px, 12vw, 72px)', display: 'flex', gap: 'clamp(16px, 4vw, 28px)', alignItems: 'flex-start' }}>
 
         {/* ── Desktop Sidebar ── */}
         <aside
           style={{
-            width: 240, flexShrink: 0, position: 'sticky', top: 104,
+            width: 'clamp(200px, 25vw, 240px)', flexShrink: 0, position: 'sticky', top: 104,
             background: '#fff', border: `1.5px solid ${t.border}`, borderRadius: 20,
-            padding: '24px 20px',
+            padding: 'clamp(20px, 3vw, 24px) clamp(16px, 3vw, 20px)',
           }}
           className="hidden lg:block"
         >
@@ -465,8 +465,8 @@ const Shop = () => {
                 transition={{ duration: 0.25 }}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-                  gap: 18,
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                  gap: 'clamp(12px, 3vw, 18px)',
                 }}
               >
                 {filteredProducts.map((product, i) => (
@@ -491,7 +491,7 @@ const Shop = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 style={{
                   background: '#fff', border: `1.5px dashed ${t.border}`,
-                  borderRadius: 20, padding: '72px 32px', textAlign: 'center',
+                  borderRadius: 20, padding: 'clamp(48px, 10vw, 72px) clamp(20px, 8vw, 32px)', textAlign: 'center',
                 }}
               >
                 <div style={{ fontSize: '3rem', marginBottom: 16 }}>🔍</div>
@@ -533,7 +533,7 @@ const Shop = () => {
           transform: drawerOpen ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 0.35s cubic-bezier(0.22,1,0.36,1)',
           maxHeight: '85vh', overflowY: 'auto',
-          padding: '0 20px 40px',
+          padding: '0 clamp(16px, 4vw, 20px) clamp(30px, 6vw, 40px)',
         }}>
           {/* Handle */}
           <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 20px' }}>
@@ -565,14 +565,14 @@ const Shop = () => {
           aria-label="Back to top"
           style={{
             position: 'fixed',
-            right: 20,
-            bottom: 22,
+            right: 'clamp(12px, 4vw, 20px)',
+            bottom: 'clamp(16px, 4vw, 22px)',
             zIndex: 70,
             border: `1.5px solid ${t.greenLight}`,
             background: t.green,
             color: '#fff',
             borderRadius: 999,
-            padding: '10px 14px',
+            padding: 'clamp(8px, 2vw, 10px) clamp(10px, 3vw, 14px)',
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,

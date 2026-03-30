@@ -216,11 +216,11 @@ const UserDashboard = () => {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px 80px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px, 5vw, 32px) clamp(16px, 5vw, 24px) clamp(60px, 10vw, 80px)' }}>
 
         {/* ── Stat cards ── */}
         <Fade delay={0.05}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 'clamp(12px, 3vw, 16px)', marginBottom: 'clamp(24px, 5vw, 32px)' }}>
             {stats.map((s, i) => (
               <Link key={i} to={s.link} style={{ textDecoration: 'none' }}>
                 <div
@@ -264,7 +264,7 @@ const UserDashboard = () => {
         </Fade>
 
         {/* ── Two column layout ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr clamp(260px, 30vw, 300px)', gap: 'clamp(16px, 4vw, 24px)', alignItems: 'start' }}
           className="dashboard-grid"
         >
 
@@ -515,7 +515,7 @@ const UserDashboard = () => {
       </div>
 
       <style>{`
-        @media (max-width: 900px) {
+        @media (max-width: 768px) {
           .dashboard-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
