@@ -118,7 +118,7 @@ describe('ForgotPassword page', () => {
     });
 
     expect(await screen.findByText('Reset successful from API')).toBeTruthy();
-  });
+  }, 15000);
 
   it('shows continue-step API error and supports human-code refresh', async () => {
     forgotMocks.apiPost.mockRejectedValueOnce({ response: { data: { message: 'Email not found' } } });

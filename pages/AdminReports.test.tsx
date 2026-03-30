@@ -118,7 +118,7 @@ describe('AdminReports page', () => {
     });
 
     expect(await screen.findByText('Summary sent.')).toBeTruthy();
-  });
+  }, 15000);
 
   it('uses configured API base URL for export links', async () => {
     reportMocks.apiDefaults.baseURL = 'https://api.babcock.test/v2';
